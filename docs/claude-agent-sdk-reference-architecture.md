@@ -478,32 +478,120 @@ agent-harness/
 
 ### 3.1 Architecture Overview
 
+#### System Flow
+
+```mermaid
+flowchart TB
+    subgraph Orchestrator["Orchestrator"]
+        direction LR
+        Detect["detectState()"] --> Select["Agent Selection"] --> Span["OTel Root Span"]
+    end
+
+    subgraph Agents["Agent Sessions"]
+        direction LR
+        Plan["Planner\n──────\nInput: app_spec.txt\nOutput: plan.json\nModel: Opus"]
+        Gen["Generator\n──────\nInput: plan.json + progress\nOutput: code + commits\nModel: Sonnet"]
+        Eval["Evaluator\n──────\nInput: running app\nOutput: eval report\nModel: Opus"]
+    end
+
+    subgraph Files["File-Based Communication"]
+        direction LR
+        FL["feature_list.json"] ~~~ PL["plan.json"]
+        PL ~~~ PG["progress.json"]
+        PG ~~~ ER["evaluation_report.json"]
+    end
+
+    Orchestrator -->|"needs_planning"| Plan
+    Orchestrator -->|"needs_generation"| Gen
+    Orchestrator -->|"needs_evaluation"| Eval
+
+    Plan -->|"writes"| Files
+    Gen <-->|"reads & writes"| Files
+    Eval -->|"writes"| Files
+
+    Eval -- "fail → needs_generation" --> Gen
+    Eval -- "pass → complete" --> Orchestrator
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        ORCHESTRATOR                             │
-│  Detects state · Chooses agent · Manages context resets         │
-│  Configurable: enable/disable evaluator, iteration limits       │
-├─────────┬──────────────────┬────────────────┬───────────────────┤
-│         │                  │                │                   │
-│   ┌─────▼─────┐    ┌──────▼──────┐   ┌─────▼──────┐          │
-│   │  PLANNER  │    │  GENERATOR  │   │ EVALUATOR  │          │
-│   │           │    │             │   │            │          │
-│   │ Input:    │    │ Input:      │   │ Input:     │          │
-│   │  prompt   │    │  plan.json  │   │  running   │          │
-│   │  (1-4     │    │  progress   │   │  app +     │          │
-│   │  lines)   │    │  git log    │   │  criteria  │          │
-│   │           │    │             │   │            │          │
-│   │ Output:   │    │ Output:     │   │ Output:    │          │
-│   │  plan.json│    │  code +     │   │  eval      │          │
-│   │           │    │  commits +  │   │  report    │          │
-│   │           │    │  progress   │   │  (pass/    │          │
-│   │           │    │             │   │   fail)    │          │
-│   └─────┬─────┘    └──────▲──────┘   └─────┬──────┘          │
-│         │                 │                 │                   │
-│         │    plan.json    │   eval_report   │                   │
-│         └────────────────►│◄────────────────┘                   │
-│                    FILE-BASED COMMUNICATION                      │
-└─────────────────────────────────────────────────────────────────┘
+
+#### Orchestrator State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> needs_initialization : no feature_list.json
+
+    needs_initialization --> needs_planning : feature_list.json created
+    needs_planning --> needs_generation : plan.json created
+
+    needs_generation --> needs_evaluation : all features pass\n& evaluator enabled\n& no eval report
+    needs_generation --> complete : all features pass\n& evaluator disabled
+
+    needs_evaluation --> complete : verdict = pass\n& score ≥ threshold
+    needs_evaluation --> needs_generation : verdict = fail\nor score < threshold
+
+    needs_generation --> needs_generation : features remain\n(next iteration)
+
+    complete --> [*]
+
+    state "Terminal States" as terminal {
+        max_iterations : max iterations reached
+        max_retries : max evaluator retries reached
+    }
+
+    needs_generation --> max_iterations
+    needs_evaluation --> max_retries
+```
+
+#### Agent Interaction Sequence
+
+```mermaid
+sequenceDiagram
+    participant O as Orchestrator
+    participant I as Initializer
+    participant P as Planner
+    participant G as Generator
+    participant E as Evaluator
+    participant FS as File System
+
+    Note over O: detectState() → needs_initialization
+    O->>I: run session (app_spec.txt)
+    I->>FS: write feature_list.json
+    I-->>O: session complete
+
+    Note over O: detectState() → needs_planning
+    O->>P: run session (app_spec.txt)
+    P->>FS: write plan.json
+    P-->>O: session complete
+
+    loop For each feature
+        Note over O: detectState() → needs_generation
+        O->>G: run session
+        G->>FS: read plan.json, feature_list.json, progress.json
+        G->>G: implement ONE feature
+        G->>FS: write code, update feature_list.json
+        G->>FS: git commit, update progress.json
+        G-->>O: session complete
+    end
+
+    alt Evaluator enabled & all features pass
+        Note over O: detectState() → needs_evaluation
+        O->>E: run session (running app + criteria)
+        E->>FS: test via agent-browser CLI
+        E->>FS: write evaluation_report.json
+
+        alt verdict = pass & score ≥ threshold
+            E-->>O: pass
+            Note over O: detectState() → complete
+        else verdict = fail
+            E-->>O: fail (with feedback)
+            Note over O: detectState() → needs_generation
+            O->>G: run session (with eval feedback)
+            G->>FS: fix issues from evaluation
+            G-->>O: session complete
+            Note over O: retry evaluation (up to maxEvaluatorRetries)
+        end
+    end
+
+    Note over O: ✅ complete
 ```
 
 > **Schema definitions**: See [Zod Schema Library](./zod-schema-library.md) for all structured state schemas.
@@ -786,6 +874,40 @@ async function runEvaluatorSession(
 **Complementary, not duplicative**: Layer 1 gives you per-session detail (token usage by type, tool acceptance rates by language). Layer 2 gives you cross-session orchestration visibility (total cost per feature, evaluator pass rate, retry patterns).
 
 > **Layer 1 details**: See [Source Analysis — Resource 5](./source-analysis.md) for the full Claude Code native OTel specification.
+
+```mermaid
+flowchart LR
+    subgraph Layer1["Layer 1: Claude Code Native"]
+        SDK["Claude Agent SDK"] --> NativeOTel["Native OTel Export"]
+        NativeOTel --> Sessions["session counts"]
+        NativeOTel --> Tokens["token usage"]
+        NativeOTel --> Cost1["cost per session"]
+        NativeOTel --> Tools["tool acceptance"]
+    end
+
+    subgraph Layer2["Layer 2: Harness Instrumentation"]
+        Root["harness_run\n(root span)"] --> IS["initializer_session"]
+        Root --> PS["planner_session"]
+        Root --> GS["generator_session"]
+        Root --> ES["evaluator_session"]
+        GS --> GA["cost_usd\nduration_ms\ntokens\nfeatures"]
+        ES --> EA["verdict\noverall_score\nretry_count"]
+    end
+
+    subgraph Collector["OTLP Collector"]
+        OTLP["localhost:4318"]
+    end
+
+    subgraph Backends["Backends"]
+        Jaeger["Jaeger\n/v1/traces"]
+        Prometheus["Prometheus\n/v1/metrics"]
+    end
+
+    Layer1 -->|"OTLP HTTP"| OTLP
+    Layer2 -->|"OTLP HTTP"| OTLP
+    OTLP --> Jaeger
+    OTLP --> Prometheus
+```
 
 ### 4.2 OTel SDK Setup (`src/observability.ts`)
 
@@ -1274,6 +1396,39 @@ This isn't W3C Trace Context over HTTP — we're crossing session boundaries wit
 ### 5.1 Why This Matters
 
 Both blog posts document agents producing code that looks correct but has subtle structural issues. The evaluator catches functional bugs via agent-browser, but unused imports, type coercion bugs, inconsistent formatting, and unreachable code slip through. Biome catches exactly these categories at Rust-native speed (full-project check typically under 1 second).
+
+```mermaid
+flowchart LR
+    subgraph ToolLifecycle["Tool Use Lifecycle"]
+        direction TB
+        Pre["preToolUse"] --> Exec["Tool Execution"] --> Post["postToolUse"] --> Stop["stop\n(session end)"]
+    end
+
+    subgraph BiomeHooks["Biome Hooks"]
+        direction TB
+        PostWrite["postToolUse\n(file write)"] --> Check["biome check"]
+        Check -->|"errors"| Inject["inject systemMessage\n→ agent self-corrects"]
+        Check -->|"clean"| Pass["continue"]
+
+        CommitGate["preToolUse\n(git commit)"] --> CommitCheck["biome check"]
+        CommitCheck -->|"errors"| Block["block commit"]
+        CommitCheck -->|"clean"| Allow["allow commit"]
+
+        SessionEnd["stop"] --> Report["full biome report"]
+    end
+
+    subgraph SecurityHook["Bash Security Hook"]
+        direction TB
+        BashCmd["bash command"] --> Allowlist["denylist check"]
+        Allowlist -->|"safe"| PermitExec["allow execution"]
+        Allowlist -->|"dangerous pattern"| Deny["deny execution"]
+    end
+
+    subgraph BrowserHook["Agent-Browser Hook"]
+        direction TB
+        BashUse["postToolUse\n(bash)"] --> Remind["re-snapshot reminder\n→ prevents stale @e1 refs"]
+    end
+```
 
 ### 5.2 `biome.json` Configuration
 

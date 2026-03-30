@@ -14,24 +14,50 @@ Each agent communicates through **file-based state** (JSON validated by Zod sche
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────┐
-│                  Orchestrator                     │
-│  State Detection → Agent Selection → OTel Root   │
-├──────────┬──────────────┬───────────┬────────────┤
-│ Planner  │  Generator   │ Evaluator │ Initializer│
-│          │              │           │            │
-│ app_spec │ plan.json    │ eval_rpt  │ feature_   │
-│ → plan   │ → features   │ → verdict │ list.json  │
-├──────────┴──────────────┴───────────┴────────────┤
-│              Shared File State                    │
-│  feature_list.json · progress.json · plan.json   │
-│  evaluation_report.json                          │
-├──────────────────────────────────────────────────┤
-│  Hooks: Biome (PostToolUse, CommitGate, Session) │
-│  OTel: Layer 1 (Native) + Layer 2 (Harness)     │
-│  Security: OS Sandbox + FS Boundary + Bash Allow │
-└──────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Orchestrator["🎯 Orchestrator"]
+        direction LR
+        SD["State Detection"] --> AS["Agent Selection"] --> OT["OTel Root Span"]
+    end
+
+    subgraph Agents["Agent Sessions"]
+        direction LR
+        Init["🔧 Initializer\n─────────────\napp_spec.txt\n→ feature_list.json"]
+        Plan["📋 Planner\n─────────────\napp_spec.txt\n→ plan.json"]
+        Gen["⚙️ Generator\n─────────────\nplan.json + progress\n→ code + commits"]
+        Eval["🔍 Evaluator\n─────────────\nrunning app + criteria\n→ eval report"]
+    end
+
+    subgraph State["📁 Shared File State"]
+        direction LR
+        FL["feature_list.json"] ~~~ PJ["plan.json"]
+        PJ ~~~ PR["progress.json"]
+        PR ~~~ ER["evaluation_report.json"]
+    end
+
+    subgraph Infra["Infrastructure"]
+        direction LR
+        Hooks["Biome Hooks\nPostToolUse · CommitGate"] ~~~ Otel["OTel\nLayer 1 Native · Layer 2 Harness"]
+        Otel ~~~ Sec["Security\nOS Sandbox · Bash Allowlist"]
+        Sec ~~~ Obs["Exporters\nJaeger Traces · Prometheus Metrics"]
+    end
+
+    Orchestrator -->|"one-shot setup"| Init
+    Orchestrator -->|"expand spec"| Plan
+    Orchestrator -->|"implement features"| Gen
+    Orchestrator -->|"test & grade"| Eval
+
+    Init --> State
+    Plan --> State
+    Gen <--> State
+    Eval <--> State
+
+    %% GAN feedback loop
+    Eval -- "❌ fail → retry with feedback" --> Gen
+    Eval -- "✅ pass → complete" --> Orchestrator
+
+    State -.-> Infra
 ```
 
 ## Tech Stack
@@ -43,7 +69,7 @@ Each agent communicates through **file-based state** (JSON validated by Zod sche
 | Agent SDK | `@anthropic-ai/claude-agent-sdk` |
 | Schemas | Zod |
 | Code Quality | Biome (format + lint) |
-| Observability | OpenTelemetry + Jaeger |
+| Observability | OpenTelemetry + Jaeger (traces) + Prometheus (metrics) |
 | CLI | Commander |
 | Browser Testing | agent-browser CLI |
 
@@ -68,7 +94,7 @@ docs/           # Reference architecture documentation
 ### Prerequisites
 
 - [Bun](https://bun.sh) (latest)
-- [Docker](https://docker.com) (for Jaeger observability stack)
+- [Docker](https://docker.com) (for Jaeger + Prometheus observability stack)
 - [gh CLI](https://cli.github.com) (for issue tracking)
 - Anthropic API key (`ANTHROPIC_API_KEY`)
 
@@ -81,8 +107,37 @@ bun install
 ### Run
 
 ```bash
-bun run index.ts
+# Basic usage — point at a project directory containing app_spec.txt
+bun run index.ts -p ./projects/my-app
+
+# Full options
+bun run index.ts \
+  -p ./projects/my-app \
+  -m claude-sonnet-4-6 \
+  --planner-model claude-opus-4-6 \
+  --evaluator-model claude-opus-4-6 \
+  --max-iterations 10 \
+  --max-evaluator-retries 3 \
+  --pass-threshold 6 \
+  --otel-endpoint http://localhost:4318
+
+# Disable optional features
+bun run index.ts -p ./projects/my-app --no-evaluator --no-biome --no-otel
 ```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-p, --project-dir` | *(required)* | Path to the project directory |
+| `-m, --model` | `claude-sonnet-4-6` | Generator model |
+| `--planner-model` | `claude-opus-4-6` | Planner model |
+| `--evaluator-model` | `claude-opus-4-6` | Evaluator model |
+| `-i, --max-iterations` | `0` (unlimited) | Maximum orchestrator iterations |
+| `--max-evaluator-retries` | `3` | Max evaluator retry attempts before stopping |
+| `--pass-threshold` | `6` | Evaluator pass/fail score threshold (0-10) |
+| `--otel-endpoint` | `http://localhost:4318` | OTLP HTTP collector endpoint |
+| `--no-evaluator` | — | Disable the evaluator agent |
+| `--no-biome` | — | Disable Biome lint hooks |
+| `--no-otel` | — | Disable OpenTelemetry instrumentation |
 
 ## Documentation
 
