@@ -29,7 +29,8 @@ Each agent communicates through **file-based state** (JSON validated by Zod sche
 │  evaluation_report.json                          │
 ├──────────────────────────────────────────────────┤
 │  Hooks: Biome (PostToolUse, CommitGate, Session) │
-│  OTel: Layer 1 (Native) + Layer 2 (Harness)     │
+│  OTel: Layer 1 (Native) + Layer 2 (Harness)      │
+│  Metrics: Prometheus · Traces: Jaeger            │
 │  Security: OS Sandbox + FS Boundary + Bash Allow │
 └──────────────────────────────────────────────────┘
 ```
@@ -43,7 +44,7 @@ Each agent communicates through **file-based state** (JSON validated by Zod sche
 | Agent SDK | `@anthropic-ai/claude-agent-sdk` |
 | Schemas | Zod |
 | Code Quality | Biome (format + lint) |
-| Observability | OpenTelemetry + Jaeger |
+| Observability | OpenTelemetry + Jaeger (traces) + Prometheus (metrics) |
 | CLI | Commander |
 | Browser Testing | agent-browser CLI |
 
@@ -68,7 +69,7 @@ docs/           # Reference architecture documentation
 ### Prerequisites
 
 - [Bun](https://bun.sh) (latest)
-- [Docker](https://docker.com) (for Jaeger observability stack)
+- [Docker](https://docker.com) (for Jaeger + Prometheus observability stack)
 - [gh CLI](https://cli.github.com) (for issue tracking)
 - Anthropic API key (`ANTHROPIC_API_KEY`)
 
@@ -81,8 +82,37 @@ bun install
 ### Run
 
 ```bash
-bun run index.ts
+# Basic usage — point at a project directory containing app_spec.txt
+bun run index.ts -p ./projects/my-app
+
+# Full options
+bun run index.ts \
+  -p ./projects/my-app \
+  -m claude-sonnet-4-6 \
+  --planner-model claude-opus-4-6 \
+  --evaluator-model claude-opus-4-6 \
+  --max-iterations 10 \
+  --max-evaluator-retries 3 \
+  --pass-threshold 6 \
+  --otel-endpoint http://localhost:4318
+
+# Disable optional features
+bun run index.ts -p ./projects/my-app --no-evaluator --no-biome --no-otel
 ```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-p, --project-dir` | *(required)* | Path to the project directory |
+| `-m, --model` | `claude-sonnet-4-6` | Generator model |
+| `--planner-model` | `claude-opus-4-6` | Planner model |
+| `--evaluator-model` | `claude-opus-4-6` | Evaluator model |
+| `-i, --max-iterations` | `0` (unlimited) | Maximum orchestrator iterations |
+| `--max-evaluator-retries` | `3` | Max evaluator retry attempts before stopping |
+| `--pass-threshold` | `6` | Evaluator pass/fail score threshold (0-10) |
+| `--otel-endpoint` | `http://localhost:4318` | OTLP HTTP collector endpoint |
+| `--no-evaluator` | — | Disable the evaluator agent |
+| `--no-biome` | — | Disable Biome lint hooks |
+| `--no-otel` | — | Disable OpenTelemetry instrumentation |
 
 ## Documentation
 
