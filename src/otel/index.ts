@@ -8,7 +8,10 @@ import {
 import { OTLPMetricExporter } from "@opentelemetry/exporter-metrics-otlp-http";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import { resourceFromAttributes } from "@opentelemetry/resources";
-import { PeriodicExportingMetricReader } from "@opentelemetry/sdk-metrics";
+import {
+	MeterProvider,
+	PeriodicExportingMetricReader,
+} from "@opentelemetry/sdk-metrics";
 import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
 import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 import {
@@ -57,14 +60,14 @@ export function createOtelContext(config: AgentConfig): OtelContext {
 		exporter: metricExporter,
 		exportIntervalMillis: 10_000,
 	});
-	metricReader.setMetricProducer(
-		tracerProvider as unknown as Parameters<
-			typeof metricReader.setMetricProducer
-		>[0],
-	);
+
+	const meterProvider = new MeterProvider({
+		resource,
+		readers: [metricReader],
+	});
 
 	const tracer = trace.getTracer(SERVICE_NAME, SERVICE_VERSION);
-	const meter = metrics.getMeter(SERVICE_NAME, SERVICE_VERSION);
+	const meter = meterProvider.getMeter(SERVICE_NAME, SERVICE_VERSION);
 
 	return {
 		tracer,
@@ -78,7 +81,7 @@ export function createOtelContext(config: AgentConfig): OtelContext {
 		},
 		async shutdown() {
 			await tracerProvider.shutdown();
-			await metricReader.shutdown();
+			await meterProvider.shutdown();
 		},
 	};
 }
