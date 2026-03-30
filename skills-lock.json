@@ -1,0 +1,20 @@
+{
+	"version": 1,
+	"skills": {
+		"agent-browser": {
+			"source": "vercel-labs/agent-browser",
+			"sourceType": "github",
+			"computedHash": "972ff8c61bef9fdf6e4b0664f231412544fa1c411b2a2751f32355d0df6bd490"
+		},
+		"bun": {
+			"source": "bun.sh",
+			"sourceType": "well-known",
+			"computedHash": "3e68bc4bcd1adaa88a78c2cb6364f82ac885df0935e4d65fd3cdd3ad58d69b49"
+		},
+		"dogfood": {
+			"source": "vercel-labs/agent-browser",
+			"sourceType": "github",
+			"computedHash": "055e73cddeec68e7eb75eab0c3f8490415384f72e98ac05405821427ed0e74b1"
+		}
+	}
+}
