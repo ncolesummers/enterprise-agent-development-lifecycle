@@ -2,6 +2,111 @@
 
 Complete Zod schema definitions for all structured state flowing between agents in the three-agent system. Every piece of data — feature lists, progress entries, sprint contracts, evaluation reports, agent configuration, and observability logs — is validated at read and write boundaries.
 
+## Schema Relationships
+
+```mermaid
+erDiagram
+    AgentConfig {
+        string projectDir
+        number maxIterations
+        string model
+        string plannerModel
+        string evaluatorModel
+        number passThreshold
+        number maxEvaluatorRetries
+        boolean enableEvaluator
+        boolean enableBiomeHooks
+        boolean enableOtel
+        string otelEndpoint
+    }
+
+    Plan {
+        string projectName
+        string description
+        string createdAt
+    }
+
+    TechnicalDesign {
+        string architecture
+        string-list aiFeatures
+    }
+
+    Stack {
+        string runtime
+        string framework
+        string database
+        string testing
+        string buildTool
+    }
+
+    Feature {
+        enum category
+        string description
+        string-list steps
+        boolean passes
+    }
+
+    SprintDecomposition {
+        number sprintNumber
+        string goal
+        number-list featureIndices
+    }
+
+    ProgressLog {
+        string projectName
+        string startedAt
+    }
+
+    ProgressEntry {
+        string timestamp
+        string sessionId
+        string sessionType
+        number iteration
+        string-list featuresAttempted
+        string-list featuresCompleted
+        string notes
+        number costUsd
+        number durationMs
+    }
+
+    EvaluatorReport {
+        string evaluatedAt
+        string sessionId
+        number overallScore
+        number passThreshold
+        enum verdict
+        string summary
+        string-list criticalIssues
+        string-list suggestions
+    }
+
+    CriterionScore {
+        string criterion
+        number score
+        number weight
+        string findings
+    }
+
+    TestResult {
+        string action
+        string expected
+        string actual
+        boolean passed
+        string screenshotPath
+        string videoPath
+    }
+
+    Plan ||--|| TechnicalDesign : contains
+    TechnicalDesign ||--|| Stack : contains
+    Plan ||--o{ Feature : "has features"
+    Plan ||--o{ SprintDecomposition : "optional sprints"
+    ProgressLog ||--o{ ProgressEntry : "has entries"
+    EvaluatorReport ||--|{ CriterionScore : "has 4 scores"
+    EvaluatorReport ||--o{ TestResult : "has tests"
+```
+
+> **Producing agents**: Initializer → `feature_list.json` (Feature[]), Planner → `plan.json` (Plan), Generator → `progress.json` (ProgressLog) + updates Feature.passes, Evaluator → `evaluation_report.json` (EvaluatorReport)
+
 ## Feature Definition
 
 ```typescript
