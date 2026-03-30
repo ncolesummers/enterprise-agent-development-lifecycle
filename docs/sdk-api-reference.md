@@ -274,4 +274,115 @@ interface ToolAnnotations {
 
 ---
 
+## SDK Wrapper (`src/sdk-wrapper.ts`)
+
+Type-safe wrapper around `query()` that consolidates the async generator loop, OTel instrumentation, message dispatch, and session metrics into a single function call.
+
+### `runAgentSession()`
+
+```typescript
+import { runAgentSession } from "./sdk-wrapper.js";
+
+const result = await runAgentSession({
+  agentType: "generator",
+  prompt: "Implement the login page",
+  model: "claude-sonnet-4-6",
+  cwd: "/path/to/project",
+  allowedTools: ["Read", "Write", "Edit", "Bash"],
+});
+
+console.log(result.costUsd, result.numTurns, result.isError);
+```
+
+#### `AgentSessionOptions`
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `agentType` | `"initializer" \| "planner" \| "generator" \| "evaluator"` | required | Agent type label (used for OTel span naming and metrics) |
+| `prompt` | `string` | required | The prompt to send to the agent |
+| `model` | `string` | required | Claude model ID |
+| `cwd` | `string` | required | Working directory for the agent |
+| `allowedTools` | `string[]` | required | Tool whitelist |
+| `permissionMode` | `PermissionMode` | `"bypassPermissions"` | SDK permission mode |
+| `hooks` | `Partial<Record<HookEvent, HookCallbackMatcher[]>>` | — | Lifecycle hooks (PreToolUse, PostToolUse, etc.) |
+| `env` | `Record<string, string>` | — | Environment variables passed to the agent |
+| `session` | `SessionOptions` | — | Session management (continue, resume, fork) |
+| `handlers` | `MessageHandlers` | `defaultHandlers` | Per-message-type callbacks |
+| `maxTurns` | `number` | — | Maximum agentic turns |
+| `otel` | `OtelContext` | — | OTel context for instrumentation |
+| `parentSpan` | `Span` | — | Parent span for tracing |
+| `spanAttributes` | `Record<string, string \| number>` | — | Extra attributes on the session span |
+
+#### `AgentSessionResult`
+
+Returned on completion:
+
+```typescript
+interface AgentSessionResult {
+  sessionId: string;
+  subtype: string;           // "success" | "error_during_execution" | ...
+  isError: boolean;
+  result?: string;           // present on success
+  errors?: string[];         // present on error
+  costUsd: number;
+  durationMs: number;
+  durationApiMs: number;
+  numTurns: number;
+  usage: {
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadInputTokens: number;
+  };
+}
+```
+
+#### `SessionOptions`
+
+Maps directly to SDK session management fields:
+
+```typescript
+interface SessionOptions {
+  continue?: boolean;       // Continue last session
+  resume?: string;          // Resume by session ID
+  forkSession?: boolean;    // Fork from existing session
+  persistSession?: boolean; // Keep session for later resume
+}
+```
+
+#### `MessageHandlers`
+
+Override message dispatch per type. Unset handlers are silently skipped.
+
+```typescript
+interface MessageHandlers {
+  onAssistant?: (message: SDKAssistantMessage) => void;
+  onResult?: (message: SDKResultMessage) => void;
+  onSystem?: (message: SDKSystemMessage) => void;
+  onToolProgress?: (message: SDKToolProgressMessage) => void;
+  onMessage?: (message: SDKMessage) => void;  // catch-all
+}
+```
+
+### `defaultHandlers`
+
+The built-in handlers that stream assistant text to stdout and log result summaries:
+
+```typescript
+import { defaultHandlers } from "./sdk-wrapper.js";
+
+// Use as-is or extend:
+await runAgentSession({
+  ...options,
+  handlers: {
+    ...defaultHandlers,
+    onResult(msg) {
+      defaultHandlers.onResult?.(msg);
+      myCustomLogger.info("Session done", { cost: msg.total_cost_usd });
+    },
+  },
+});
+```
+
+---
+
 > **See also**: [Main Reference Architecture](./claude-agent-sdk-reference-architecture.md)
