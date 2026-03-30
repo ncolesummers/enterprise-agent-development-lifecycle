@@ -1,5 +1,4 @@
 import { resolve } from "node:path";
-import { query, type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import {
 	getEvaluatorPrompt,
 	getGeneratorPrompt,
@@ -14,12 +13,12 @@ import {
 	createOtelContext,
 	type OtelContext,
 	type Span,
-	SpanStatusCode,
 } from "./otel/index.js";
 import type { AgentConfig } from "./schemas/config.js";
 import { EvaluatorReportSchema } from "./schemas/evaluation.js";
 import { FeatureListSchema } from "./schemas/feature.js";
 import { PlanSchema } from "./schemas/plan.js";
+import { runAgentSession } from "./sdk-wrapper.js";
 
 // ---------------------------------------------------------------------------
 // State detection
@@ -105,83 +104,6 @@ export async function countPassingFeatures(
 }
 
 // ---------------------------------------------------------------------------
-// Message handler
-// ---------------------------------------------------------------------------
-
-function handleMessage(message: SDKMessage): void {
-	switch (message.type) {
-		case "assistant":
-			for (const block of message.message.content) {
-				if (block.type === "text") process.stdout.write(block.text);
-				if (block.type === "tool_use") console.log(`\n[Tool: ${block.name}]`);
-			}
-			break;
-		case "result":
-			console.log(`\nSession complete: ${message.subtype}`);
-			if (message.total_cost_usd != null) {
-				console.log(`Cost: $${message.total_cost_usd.toFixed(4)}`);
-			}
-			if (message.duration_ms != null) {
-				console.log(`Duration: ${(message.duration_ms / 1000).toFixed(1)}s`);
-			}
-			break;
-	}
-}
-
-// ---------------------------------------------------------------------------
-// Session metrics recording
-// ---------------------------------------------------------------------------
-
-function recordSessionMetrics(
-	otel: OtelContext,
-	span: Span,
-	result: SDKMessage & { type: "result" },
-	agentType: string,
-): void {
-	if (result.total_cost_usd != null) {
-		span.setAttribute("session.cost_usd", result.total_cost_usd);
-		otel.meter
-			.createHistogram("harness.session.cost_usd")
-			.record(result.total_cost_usd, { agent_type: agentType });
-	}
-
-	if (result.duration_ms != null) {
-		span.setAttribute("session.duration_ms", result.duration_ms);
-		otel.meter
-			.createHistogram("harness.session.duration_ms")
-			.record(result.duration_ms, { agent_type: agentType });
-	}
-
-	if (result.usage) {
-		span.setAttribute("session.tokens.input", result.usage.input_tokens);
-		span.setAttribute("session.tokens.output", result.usage.output_tokens);
-		span.setAttribute(
-			"session.tokens.cache_read",
-			result.usage.cache_read_input_tokens,
-		);
-
-		otel.meter
-			.createHistogram("harness.session.tokens.input")
-			.record(result.usage.input_tokens, { agent_type: agentType });
-		otel.meter
-			.createHistogram("harness.session.tokens.output")
-			.record(result.usage.output_tokens, { agent_type: agentType });
-	}
-
-	otel.meter
-		.createCounter("harness.sessions.total")
-		.add(1, { agent_type: agentType });
-
-	span.setAttribute("session.result", result.subtype);
-	if (result.subtype.startsWith("error")) {
-		span.setStatus({
-			code: SpanStatusCode.ERROR,
-			message: result.subtype,
-		});
-	}
-}
-
-// ---------------------------------------------------------------------------
 // Agent sessions
 // ---------------------------------------------------------------------------
 
@@ -190,43 +112,25 @@ async function runInitializerSession(
 	otel: OtelContext,
 	parentSpan: Span,
 ): Promise<void> {
-	const span = otel.startSpan("initializer_session", {
-		parent: parentSpan,
+	const prompt = await getInitializerPrompt();
+
+	console.log("\n--- Initializer Session ---\n");
+
+	await runAgentSession({
+		agentType: "initializer",
+		prompt,
+		model: config.model,
+		cwd: config.projectDir,
+		allowedTools: ["Read", "Write", "Bash", "Glob", "Grep"],
+		otel,
+		parentSpan,
 	});
 
-	try {
-		const prompt = await getInitializerPrompt();
-
-		console.log("\n--- Initializer Session ---\n");
-
-		for await (const message of query({
-			prompt,
-			options: {
-				model: config.model,
-				cwd: config.projectDir,
-				permissionMode: "bypassPermissions",
-				allowDangerouslySkipPermissions: true,
-				allowedTools: ["Read", "Write", "Bash", "Glob", "Grep"],
-			},
-		})) {
-			handleMessage(message);
-			if (message.type === "result") {
-				recordSessionMetrics(otel, span, message, "initializer");
-			}
-		}
-
-		// Validate that feature_list.json was written correctly
-		const featureListPath = resolve(config.projectDir, "feature_list.json");
-		if (await Bun.file(featureListPath).exists()) {
-			const raw = await Bun.file(featureListPath).json();
-			FeatureListSchema.parse(raw);
-		}
-	} catch (err) {
-		span.recordException(err as Error);
-		span.setStatus({ code: SpanStatusCode.ERROR, message: String(err) });
-		throw err;
-	} finally {
-		span.end();
+	// Validate that feature_list.json was written correctly
+	const featureListPath = resolve(config.projectDir, "feature_list.json");
+	if (await Bun.file(featureListPath).exists()) {
+		const raw = await Bun.file(featureListPath).json();
+		FeatureListSchema.parse(raw);
 	}
 }
 
@@ -235,62 +139,46 @@ async function runPlannerSession(
 	otel: OtelContext,
 	parentSpan: Span,
 ): Promise<void> {
-	const span = otel.startSpan("planner_session", { parent: parentSpan });
+	const appSpecPath = resolve(config.projectDir, "app_spec.txt");
+	const appSpecFile = Bun.file(appSpecPath);
 
-	try {
-		const appSpecPath = resolve(config.projectDir, "app_spec.txt");
-		const appSpecFile = Bun.file(appSpecPath);
+	if (!(await appSpecFile.exists())) {
+		throw new Error(
+			`Expected an application spec file at "${appSpecPath}".\n\n` +
+				`Create a text file named "app_spec.txt" in your project directory (${config.projectDir}) ` +
+				`describing the application you want to build, then rerun the orchestrator.`,
+		);
+	}
 
-		if (!(await appSpecFile.exists())) {
-			throw new Error(
-				`Expected an application spec file at "${appSpecPath}".\n\n` +
-					`Create a text file named "app_spec.txt" in your project directory (${config.projectDir}) ` +
-					`describing the application you want to build, then rerun the orchestrator.`,
-			);
-		}
+	const appSpec = await appSpecFile.text();
 
-		const appSpec = await appSpecFile.text();
+	if (!appSpec.trim()) {
+		throw new Error(
+			`The application spec file at "${appSpecPath}" is empty.\n\n` +
+				`Add a description of the application you want to build to "app_spec.txt", ` +
+				`then rerun the orchestrator.`,
+		);
+	}
 
-		if (!appSpec.trim()) {
-			throw new Error(
-				`The application spec file at "${appSpecPath}" is empty.\n\n` +
-					`Add a description of the application you want to build to "app_spec.txt", ` +
-					`then rerun the orchestrator.`,
-			);
-		}
+	const prompt = await getPlannerPrompt(appSpec);
 
-		const prompt = await getPlannerPrompt(appSpec);
+	console.log("\n--- Planner Session ---\n");
 
-		console.log("\n--- Planner Session ---\n");
+	await runAgentSession({
+		agentType: "planner",
+		prompt,
+		model: config.plannerModel,
+		cwd: config.projectDir,
+		allowedTools: ["Read", "Write", "Bash"],
+		otel,
+		parentSpan,
+	});
 
-		for await (const message of query({
-			prompt,
-			options: {
-				model: config.plannerModel,
-				cwd: config.projectDir,
-				permissionMode: "bypassPermissions",
-				allowDangerouslySkipPermissions: true,
-				allowedTools: ["Read", "Write", "Bash"],
-			},
-		})) {
-			handleMessage(message);
-			if (message.type === "result") {
-				recordSessionMetrics(otel, span, message, "planner");
-			}
-		}
-
-		// Validate the plan was written correctly
-		const planPath = resolve(config.projectDir, "plan.json");
-		if (await Bun.file(planPath).exists()) {
-			const raw = await Bun.file(planPath).json();
-			PlanSchema.parse(raw);
-		}
-	} catch (err) {
-		span.recordException(err as Error);
-		span.setStatus({ code: SpanStatusCode.ERROR, message: String(err) });
-		throw err;
-	} finally {
-		span.end();
+	// Validate the plan was written correctly
+	const planPath = resolve(config.projectDir, "plan.json");
+	if (await Bun.file(planPath).exists()) {
+		const raw = await Bun.file(planPath).json();
+		PlanSchema.parse(raw);
 	}
 }
 
@@ -300,64 +188,44 @@ async function runGeneratorSession(
 	parentSpan: Span,
 	iteration: number,
 ): Promise<void> {
-	const span = otel.startSpan("generator_session", {
-		parent: parentSpan,
-		attributes: { iteration },
+	const prompt = await getGeneratorPrompt();
+	const biomeHooks = config.enableBiomeHooks
+		? createBiomeHooks(config, otel)
+		: { preToolUse: [], postToolUse: [], stop: [], preCompact: [] };
+	const agentBrowserHooks = createAgentBrowserHooks();
+
+	console.log(`\n--- Generator Session (iteration ${iteration}) ---\n`);
+
+	await runAgentSession({
+		agentType: "generator",
+		prompt,
+		model: config.model,
+		cwd: config.projectDir,
+		allowedTools: ["Read", "Write", "Edit", "Glob", "Grep", "Bash"],
+		hooks: {
+			PreToolUse: [
+				{ matcher: "Bash", hooks: [bashSecurityHook] },
+				...biomeHooks.preToolUse,
+			],
+			PostToolUse: [
+				...biomeHooks.postToolUse,
+				...agentBrowserHooks.postToolUse,
+			],
+			Stop: [...biomeHooks.stop],
+			PreCompact: [...biomeHooks.preCompact],
+		},
+		env: config.enableOtel
+			? {
+					CLAUDE_CODE_ENABLE_TELEMETRY: "1",
+					OTEL_METRICS_EXPORTER: "otlp",
+					OTEL_LOGS_EXPORTER: "otlp",
+					OTEL_EXPORTER_OTLP_ENDPOINT: config.otelEndpoint,
+				}
+			: undefined,
+		otel,
+		parentSpan,
+		spanAttributes: { iteration },
 	});
-
-	try {
-		const prompt = await getGeneratorPrompt();
-		const biomeHooks = config.enableBiomeHooks
-			? createBiomeHooks(config, otel)
-			: { preToolUse: [], postToolUse: [], stop: [], preCompact: [] };
-		const agentBrowserHooks = createAgentBrowserHooks();
-
-		console.log(`\n--- Generator Session (iteration ${iteration}) ---\n`);
-
-		for await (const message of query({
-			prompt,
-			options: {
-				model: config.model,
-				cwd: config.projectDir,
-				permissionMode: "bypassPermissions",
-				allowDangerouslySkipPermissions: true,
-				allowedTools: ["Read", "Write", "Edit", "Glob", "Grep", "Bash"],
-				hooks: {
-					PreToolUse: [
-						{ matcher: "Bash", hooks: [bashSecurityHook] },
-						...biomeHooks.preToolUse,
-					],
-					PostToolUse: [
-						...biomeHooks.postToolUse,
-						...agentBrowserHooks.postToolUse,
-					],
-					Stop: [...biomeHooks.stop],
-					PreCompact: [...biomeHooks.preCompact],
-				},
-				...(config.enableOtel
-					? {
-							env: {
-								CLAUDE_CODE_ENABLE_TELEMETRY: "1",
-								OTEL_METRICS_EXPORTER: "otlp",
-								OTEL_LOGS_EXPORTER: "otlp",
-								OTEL_EXPORTER_OTLP_ENDPOINT: config.otelEndpoint,
-							},
-						}
-					: {}),
-			},
-		})) {
-			handleMessage(message);
-			if (message.type === "result") {
-				recordSessionMetrics(otel, span, message, "generator");
-			}
-		}
-	} catch (err) {
-		span.recordException(err as Error);
-		span.setStatus({ code: SpanStatusCode.ERROR, message: String(err) });
-		throw err;
-	} finally {
-		span.end();
-	}
 }
 
 async function runEvaluatorSession(
@@ -365,56 +233,41 @@ async function runEvaluatorSession(
 	otel: OtelContext,
 	parentSpan: Span,
 ): Promise<boolean> {
-	const span = otel.startSpan("evaluator_session", { parent: parentSpan });
+	const prompt = await getEvaluatorPrompt();
+	const agentBrowserHooks = createAgentBrowserHooks();
 
-	try {
-		const prompt = await getEvaluatorPrompt();
-		const agentBrowserHooks = createAgentBrowserHooks();
+	console.log("\n--- Evaluator Session ---\n");
 
-		console.log("\n--- Evaluator Session ---\n");
+	await runAgentSession({
+		agentType: "evaluator",
+		prompt,
+		model: config.evaluatorModel,
+		cwd: config.projectDir,
+		allowedTools: ["Read", "Write", "Bash"],
+		hooks: {
+			PreToolUse: [{ matcher: "Bash", hooks: [bashSecurityHook] }],
+			PostToolUse: [...agentBrowserHooks.postToolUse],
+		},
+		otel,
+		parentSpan,
+	});
 
-		for await (const message of query({
-			prompt,
-			options: {
-				model: config.evaluatorModel,
-				cwd: config.projectDir,
-				permissionMode: "bypassPermissions",
-				allowDangerouslySkipPermissions: true,
-				allowedTools: ["Read", "Write", "Bash"],
-				hooks: {
-					PreToolUse: [{ matcher: "Bash", hooks: [bashSecurityHook] }],
-					PostToolUse: [...agentBrowserHooks.postToolUse],
-				},
-			},
-		})) {
-			handleMessage(message);
-			if (message.type === "result") {
-				recordSessionMetrics(otel, span, message, "evaluator");
-			}
-		}
+	// Read and validate the evaluation report
+	const evalReportPath = resolve(config.projectDir, "evaluation_report.json");
+	let passed = false;
 
-		// Read and validate the evaluation report
-		const evalReportPath = resolve(config.projectDir, "evaluation_report.json");
-		let passed = false;
+	if (await Bun.file(evalReportPath).exists()) {
+		const raw = await Bun.file(evalReportPath).json();
+		const report = EvaluatorReportSchema.parse(raw);
+		passed =
+			report.verdict === "pass" && report.overallScore >= config.passThreshold;
 
-		if (await Bun.file(evalReportPath).exists()) {
-			const raw = await Bun.file(evalReportPath).json();
-			const report = EvaluatorReportSchema.parse(raw);
-			span.setAttribute("verdict", report.verdict);
-			span.setAttribute("overall_score", report.overallScore);
-			passed =
-				report.verdict === "pass" &&
-				report.overallScore >= config.passThreshold;
-		}
-
-		return passed;
-	} catch (err) {
-		span.recordException(err as Error);
-		span.setStatus({ code: SpanStatusCode.ERROR, message: String(err) });
-		throw err;
-	} finally {
-		span.end();
+		// Preserve evaluator telemetry on the parent span
+		parentSpan.setAttribute("evaluator.verdict", report.verdict);
+		parentSpan.setAttribute("evaluator.overall_score", report.overallScore);
 	}
+
+	return passed;
 }
 
 // ---------------------------------------------------------------------------
