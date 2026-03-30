@@ -7,7 +7,6 @@ import {
 	type SDKAssistantMessage,
 	type SDKMessage,
 	type SDKResultMessage,
-	type SDKSystemMessage,
 	type SDKToolProgressMessage,
 } from "@anthropic-ai/claude-agent-sdk";
 import { type OtelContext, type Span, SpanStatusCode } from "./otel/index.js";
@@ -21,8 +20,10 @@ export type AgentType = "initializer" | "planner" | "generator" | "evaluator";
 export interface MessageHandlers {
 	onAssistant?: (message: SDKAssistantMessage) => void;
 	onResult?: (message: SDKResultMessage) => void;
-	onSystem?: (message: SDKSystemMessage) => void;
+	/** Called for all messages with type "system" (init, compact_boundary, etc.) */
+	onSystem?: (message: SDKMessage & { type: "system" }) => void;
 	onToolProgress?: (message: SDKToolProgressMessage) => void;
+	/** Catch-all for message types without a dedicated handler above. */
 	onMessage?: (message: SDKMessage) => void;
 }
 
@@ -162,13 +163,12 @@ export async function runAgentSession(
 	const handlers = options.handlers ?? defaultHandlers;
 
 	// Create OTel span if instrumentation is provided
-	const span =
-		otel && parentSpan
-			? otel.startSpan(`${agentType}_session`, {
-					parent: parentSpan,
-					attributes: spanAttributes,
-				})
-			: undefined;
+	const span = otel
+		? otel.startSpan(`${agentType}_session`, {
+				...(parentSpan && { parent: parentSpan }),
+				...(spanAttributes && { attributes: spanAttributes }),
+			})
+		: undefined;
 
 	try {
 		// Build SDK options
@@ -203,11 +203,10 @@ export async function runAgentSession(
 					handlers.onResult?.(message);
 					break;
 				case "system":
-					if ("subtype" in message && message.subtype === "init") {
-						handlers.onSystem?.(message as SDKSystemMessage);
-					} else {
-						handlers.onMessage?.(message);
-					}
+					handlers.onSystem?.(message);
+					break;
+				case "tool_progress":
+					handlers.onToolProgress?.(message);
 					break;
 				default:
 					handlers.onMessage?.(message);

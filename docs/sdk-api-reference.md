@@ -351,15 +351,15 @@ interface SessionOptions {
 
 #### `MessageHandlers`
 
-Override message dispatch per type. Unset handlers are silently skipped.
+Override message dispatch per type. Unset handlers are silently skipped. `onMessage` fires only for message types that don't have a dedicated handler (i.e., types other than `assistant`, `result`, `system`, and `tool_progress`).
 
 ```typescript
 interface MessageHandlers {
   onAssistant?: (message: SDKAssistantMessage) => void;
   onResult?: (message: SDKResultMessage) => void;
-  onSystem?: (message: SDKSystemMessage) => void;
+  onSystem?: (message: SDKMessage & { type: "system" }) => void;  // all system subtypes
   onToolProgress?: (message: SDKToolProgressMessage) => void;
-  onMessage?: (message: SDKMessage) => void;  // catch-all
+  onMessage?: (message: SDKMessage) => void;  // unhandled types only
 }
 ```
 

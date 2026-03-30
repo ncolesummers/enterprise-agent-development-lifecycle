@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type {
 	SDKAssistantMessage,
+	SDKCompactBoundaryMessage,
 	SDKMessage,
 	SDKResultError,
 	SDKResultSuccess,
+	SDKSystemMessage,
+	SDKToolProgressMessage,
 } from "@anthropic-ai/claude-agent-sdk";
 import type { OtelContext, Span } from "./otel/index.js";
 
@@ -354,6 +357,107 @@ describe("runAgentSession", () => {
 
 		expect(capturedOptions?.permissionMode).toBe("plan");
 		expect(capturedOptions?.allowDangerouslySkipPermissions).toBe(false);
+	});
+
+	test("dispatches system init message to onSystem", async () => {
+		const systemMsg = {
+			type: "system",
+			subtype: "init",
+			apiKeySource: "user",
+			claude_code_version: "1.0.0",
+			cwd: "/tmp",
+			tools: [],
+			mcp_servers: [],
+			model: "claude-sonnet-4-6",
+			permissionMode: "bypassPermissions",
+			slash_commands: [],
+			output_style: "text",
+			skills: [],
+			plugins: [],
+			uuid: "00000000-0000-0000-0000-000000000004",
+			session_id: "sess_abc",
+		} as unknown as SDKSystemMessage;
+
+		mockQueryWith([systemMsg, makeSuccessResult()]);
+
+		const onSystem = mock(() => {});
+		const onMessage = mock(() => {});
+
+		await runAgentSession({
+			...baseOptions,
+			handlers: { onSystem, onMessage },
+		});
+
+		expect(onSystem).toHaveBeenCalledTimes(1);
+		expect(onSystem).toHaveBeenCalledWith(systemMsg);
+		// system messages go to onSystem, not onMessage
+		expect(onMessage).not.toHaveBeenCalled();
+	});
+
+	test("dispatches compact_boundary system message to onSystem", async () => {
+		const compactMsg = {
+			type: "system",
+			subtype: "compact_boundary",
+			compact_metadata: { trigger: "auto", pre_tokens: 50000 },
+			uuid: "00000000-0000-0000-0000-000000000005",
+			session_id: "sess_abc",
+		} as unknown as SDKCompactBoundaryMessage;
+
+		mockQueryWith([compactMsg, makeSuccessResult()]);
+
+		const onSystem = mock(() => {});
+		const onMessage = mock(() => {});
+
+		await runAgentSession({
+			...baseOptions,
+			handlers: { onSystem, onMessage },
+		});
+
+		expect(onSystem).toHaveBeenCalledTimes(1);
+		expect(onSystem).toHaveBeenCalledWith(compactMsg);
+		expect(onMessage).not.toHaveBeenCalled();
+	});
+
+	test("dispatches tool_progress message to onToolProgress", async () => {
+		const toolProgressMsg = {
+			type: "tool_progress",
+			tool_use_id: "tu_001",
+			tool_name: "Bash",
+			parent_tool_use_id: null,
+			elapsed_time_seconds: 5,
+			uuid: "00000000-0000-0000-0000-000000000006",
+			session_id: "sess_abc",
+		} as unknown as SDKToolProgressMessage;
+
+		mockQueryWith([toolProgressMsg, makeSuccessResult()]);
+
+		const onToolProgress = mock(() => {});
+		const onMessage = mock(() => {});
+
+		await runAgentSession({
+			...baseOptions,
+			handlers: { onToolProgress, onMessage },
+		});
+
+		expect(onToolProgress).toHaveBeenCalledTimes(1);
+		expect(onToolProgress).toHaveBeenCalledWith(toolProgressMsg);
+		// tool_progress goes to onToolProgress, not onMessage
+		expect(onMessage).not.toHaveBeenCalled();
+	});
+
+	test("creates root span when otel provided without parentSpan", async () => {
+		mockQueryWith([makeAssistantMessage(), makeSuccessResult()]);
+		const { otel, childSpan } = createMockOtel();
+
+		await runAgentSession({
+			...baseOptions,
+			otel,
+			// no parentSpan
+		});
+
+		expect(otel.startSpan).toHaveBeenCalledTimes(1);
+		expect(childSpan.setAttribute).toHaveBeenCalled();
+		expect(childSpan.end).toHaveBeenCalledTimes(1);
 	});
 });
 

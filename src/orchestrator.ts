@@ -261,6 +261,10 @@ async function runEvaluatorSession(
 		const report = EvaluatorReportSchema.parse(raw);
 		passed =
 			report.verdict === "pass" && report.overallScore >= config.passThreshold;
+
+		// Preserve evaluator telemetry on the parent span
+		parentSpan.setAttribute("evaluator.verdict", report.verdict);
+		parentSpan.setAttribute("evaluator.overall_score", report.overallScore);
 	}
 
 	return passed;
