@@ -14,25 +14,50 @@ Each agent communicates through **file-based state** (JSON validated by Zod sche
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────┐
-│                  Orchestrator                     │
-│  State Detection → Agent Selection → OTel Root   │
-├──────────┬──────────────┬───────────┬────────────┤
-│ Planner  │  Generator   │ Evaluator │ Initializer│
-│          │              │           │            │
-│ app_spec │ plan.json    │ eval_rpt  │ feature_   │
-│ → plan   │ → features   │ → verdict │ list.json  │
-├──────────┴──────────────┴───────────┴────────────┤
-│              Shared File State                    │
-│  feature_list.json · progress.json · plan.json   │
-│  evaluation_report.json                          │
-├──────────────────────────────────────────────────┤
-│  Hooks: Biome (PostToolUse, CommitGate, Session) │
-│  OTel: Layer 1 (Native) + Layer 2 (Harness)      │
-│  Metrics: Prometheus · Traces: Jaeger            │
-│  Security: OS Sandbox + FS Boundary + Bash Allow │
-└──────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Orchestrator["🎯 Orchestrator"]
+        direction LR
+        SD["State Detection"] --> AS["Agent Selection"] --> OT["OTel Root Span"]
+    end
+
+    subgraph Agents["Agent Sessions"]
+        direction LR
+        Init["🔧 Initializer\n─────────────\napp_spec.txt\n→ feature_list.json"]
+        Plan["📋 Planner\n─────────────\napp_spec.txt\n→ plan.json"]
+        Gen["⚙️ Generator\n─────────────\nplan.json + progress\n→ code + commits"]
+        Eval["🔍 Evaluator\n─────────────\nrunning app + criteria\n→ eval report"]
+    end
+
+    subgraph State["📁 Shared File State"]
+        direction LR
+        FL["feature_list.json"] ~~~ PJ["plan.json"]
+        PJ ~~~ PR["progress.json"]
+        PR ~~~ ER["evaluation_report.json"]
+    end
+
+    subgraph Infra["Infrastructure"]
+        direction LR
+        Hooks["Biome Hooks\nPostToolUse · CommitGate"] ~~~ Otel["OTel\nLayer 1 Native · Layer 2 Harness"]
+        Otel ~~~ Sec["Security\nOS Sandbox · Bash Allowlist"]
+        Sec ~~~ Obs["Exporters\nJaeger Traces · Prometheus Metrics"]
+    end
+
+    Orchestrator -->|"one-shot setup"| Init
+    Orchestrator -->|"expand spec"| Plan
+    Orchestrator -->|"implement features"| Gen
+    Orchestrator -->|"test & grade"| Eval
+
+    Init --> State
+    Plan --> State
+    Gen <--> State
+    Eval <--> State
+
+    %% GAN feedback loop
+    Eval -- "❌ fail → retry with feedback" --> Gen
+    Eval -- "✅ pass → complete" --> Orchestrator
+
+    State -.-> Infra
 ```
 
 ## Tech Stack
