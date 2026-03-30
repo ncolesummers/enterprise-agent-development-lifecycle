@@ -19,7 +19,7 @@ export const AgentConfigSchema = z.object({
 	maxEvaluatorRetries: z.number().int().nonnegative().default(3),
 	enableBiomeHooks: z.boolean().default(true),
 	enableOtel: z.boolean().default(true),
-	otelEndpoint: z.string().default("http://localhost:4317"),
+	otelEndpoint: z.string().default("http://localhost:4318"),
 });
 
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;

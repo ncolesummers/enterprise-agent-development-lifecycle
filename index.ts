@@ -23,7 +23,7 @@ const program = new Command()
 	.option(
 		"--otel-endpoint <url>",
 		"OTel collector endpoint",
-		"http://localhost:4317",
+		"http://localhost:4318",
 	)
 	.option("--max-evaluator-retries <n>", "Max evaluator retry attempts", "3")
 	.option("--pass-threshold <n>", "Evaluator pass/fail threshold (0-10)", "6");
