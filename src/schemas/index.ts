@@ -29,3 +29,10 @@ export {
 	type ProgressLog,
 	ProgressLogSchema,
 } from "./progress.js";
+
+export {
+	type SessionState,
+	SessionStateSchema,
+	type TokenUsage,
+	TokenUsageSchema,
+} from "./session.js";
