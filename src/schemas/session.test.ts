@@ -38,14 +38,24 @@ describe("TokenUsageSchema", () => {
 	});
 
 	test("rejects negative values", () => {
-		expect(TokenUsageSchema.safeParse(makeTokenUsage({ input: -1 })).success).toBe(false);
-		expect(TokenUsageSchema.safeParse(makeTokenUsage({ output: -1 })).success).toBe(false);
-		expect(TokenUsageSchema.safeParse(makeTokenUsage({ cacheRead: -1 })).success).toBe(false);
-		expect(TokenUsageSchema.safeParse(makeTokenUsage({ cacheCreation: -1 })).success).toBe(false);
+		expect(
+			TokenUsageSchema.safeParse(makeTokenUsage({ input: -1 })).success,
+		).toBe(false);
+		expect(
+			TokenUsageSchema.safeParse(makeTokenUsage({ output: -1 })).success,
+		).toBe(false);
+		expect(
+			TokenUsageSchema.safeParse(makeTokenUsage({ cacheRead: -1 })).success,
+		).toBe(false);
+		expect(
+			TokenUsageSchema.safeParse(makeTokenUsage({ cacheCreation: -1 })).success,
+		).toBe(false);
 	});
 
 	test("rejects non-integer values", () => {
-		expect(TokenUsageSchema.safeParse(makeTokenUsage({ input: 1.5 })).success).toBe(false);
+		expect(
+			TokenUsageSchema.safeParse(makeTokenUsage({ input: 1.5 })).success,
+		).toBe(false);
 	});
 
 	test("rejects missing fields", () => {
@@ -81,7 +91,9 @@ describe("SessionStateSchema", () => {
 	});
 
 	test("rejects invalid agentType", () => {
-		const result = SessionStateSchema.safeParse(makeSession({ agentType: "orchestrator" }));
+		const result = SessionStateSchema.safeParse(
+			makeSession({ agentType: "orchestrator" }),
+		);
 		expect(result.success).toBe(false);
 	});
 
@@ -94,7 +106,9 @@ describe("SessionStateSchema", () => {
 	});
 
 	test("rejects invalid result", () => {
-		const result = SessionStateSchema.safeParse(makeSession({ result: "timeout" }));
+		const result = SessionStateSchema.safeParse(
+			makeSession({ result: "timeout" }),
+		);
 		expect(result.success).toBe(false);
 	});
 
@@ -117,7 +131,9 @@ describe("SessionStateSchema", () => {
 	});
 
 	test("costUsd rejects negative values", () => {
-		const result = SessionStateSchema.safeParse(makeSession({ costUsd: -0.01 }));
+		const result = SessionStateSchema.safeParse(
+			makeSession({ costUsd: -0.01 }),
+		);
 		expect(result.success).toBe(false);
 	});
 
@@ -135,19 +151,31 @@ describe("SessionStateSchema", () => {
 		const without = SessionStateSchema.safeParse(makeSession());
 		expect(without.success).toBe(true);
 
-		const withIt = SessionStateSchema.safeParse(makeSession({ result: "success" }));
+		const withIt = SessionStateSchema.safeParse(
+			makeSession({ result: "success" }),
+		);
 		expect(withIt.success).toBe(true);
 	});
 
 	test("iteration must be a positive integer", () => {
-		expect(SessionStateSchema.safeParse(makeSession({ iteration: 0 })).success).toBe(false);
-		expect(SessionStateSchema.safeParse(makeSession({ iteration: -1 })).success).toBe(false);
-		expect(SessionStateSchema.safeParse(makeSession({ iteration: 1.5 })).success).toBe(false);
-		expect(SessionStateSchema.safeParse(makeSession({ iteration: 1 })).success).toBe(true);
+		expect(
+			SessionStateSchema.safeParse(makeSession({ iteration: 0 })).success,
+		).toBe(false);
+		expect(
+			SessionStateSchema.safeParse(makeSession({ iteration: -1 })).success,
+		).toBe(false);
+		expect(
+			SessionStateSchema.safeParse(makeSession({ iteration: 1.5 })).success,
+		).toBe(false);
+		expect(
+			SessionStateSchema.safeParse(makeSession({ iteration: 1 })).success,
+		).toBe(true);
 	});
 
 	test("rejects invalid startedAt datetime", () => {
-		const result = SessionStateSchema.safeParse(makeSession({ startedAt: "not-a-date" }));
+		const result = SessionStateSchema.safeParse(
+			makeSession({ startedAt: "not-a-date" }),
+		);
 		expect(result.success).toBe(false);
 	});
 

@@ -5,7 +5,11 @@ function makeFeature(overrides?: Record<string, unknown>) {
 	return {
 		category: "functional",
 		description: "User can log in with valid credentials",
-		steps: ["Navigate to login page", "Enter valid email and password", "Click submit"],
+		steps: [
+			"Navigate to login page",
+			"Enter valid email and password",
+			"Click submit",
+		],
 		...overrides,
 	};
 }
@@ -33,7 +37,9 @@ describe("FeatureSchema", () => {
 	});
 
 	test("rejects invalid category", () => {
-		const result = FeatureSchema.safeParse(makeFeature({ category: "unknown" }));
+		const result = FeatureSchema.safeParse(
+			makeFeature({ category: "unknown" }),
+		);
 		expect(result.success).toBe(false);
 	});
 
@@ -54,12 +60,16 @@ describe("FeatureSchema", () => {
 	});
 
 	test("rejects description shorter than 10 characters", () => {
-		const result = FeatureSchema.safeParse(makeFeature({ description: "Too short" }));
+		const result = FeatureSchema.safeParse(
+			makeFeature({ description: "Too short" }),
+		);
 		expect(result.success).toBe(false);
 	});
 
 	test("accepts description of exactly 10 characters", () => {
-		const result = FeatureSchema.safeParse(makeFeature({ description: "1234567890" }));
+		const result = FeatureSchema.safeParse(
+			makeFeature({ description: "1234567890" }),
+		);
 		expect(result.success).toBe(true);
 	});
 
@@ -79,7 +89,9 @@ describe("FeatureSchema", () => {
 	});
 
 	test("rejects missing required fields", () => {
-		const result = FeatureSchema.safeParse({ description: "A valid description here" });
+		const result = FeatureSchema.safeParse({
+			description: "A valid description here",
+		});
 		expect(result.success).toBe(false);
 	});
 });
@@ -93,7 +105,10 @@ describe("FeatureListSchema", () => {
 	test("parses a valid list with multiple features", () => {
 		const result = FeatureListSchema.safeParse([
 			makeFeature({ description: "First feature description" }),
-			makeFeature({ category: "api", description: "Second feature description" }),
+			makeFeature({
+				category: "api",
+				description: "Second feature description",
+			}),
 		]);
 		expect(result.success).toBe(true);
 	});

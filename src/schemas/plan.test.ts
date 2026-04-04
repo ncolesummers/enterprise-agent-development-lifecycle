@@ -13,7 +13,8 @@ function makeTechnicalDesign(overrides?: Record<string, unknown>) {
 			testing: "bun:test",
 			buildTool: "bun",
 		},
-		architecture: "Three-agent ADLC orchestration with planner, generator, and evaluator",
+		architecture:
+			"Three-agent ADLC orchestration with planner, generator, and evaluator",
 		aiFeatures: ["AI-powered code generation", "Automated evaluation scoring"],
 		...overrides,
 	};
@@ -23,7 +24,11 @@ function makeFeature(overrides?: Record<string, unknown>) {
 	return {
 		category: "functional",
 		description: "User can log in with valid credentials",
-		steps: ["Navigate to login page", "Enter valid email and password", "Click submit"],
+		steps: [
+			"Navigate to login page",
+			"Enter valid email and password",
+			"Click submit",
+		],
 		...overrides,
 	};
 }

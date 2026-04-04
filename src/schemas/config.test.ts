@@ -42,7 +42,9 @@ describe("AgentConfigSchema", () => {
 	});
 
 	test("maxIterations 0 means unlimited", () => {
-		const result = AgentConfigSchema.safeParse(makeConfig({ maxIterations: 0 }));
+		const result = AgentConfigSchema.safeParse(
+			makeConfig({ maxIterations: 0 }),
+		);
 		expect(result.success).toBe(true);
 		if (result.success) {
 			expect(result.data.maxIterations).toBe(0);
@@ -50,27 +52,41 @@ describe("AgentConfigSchema", () => {
 	});
 
 	test("maxIterations rejects negative values", () => {
-		const result = AgentConfigSchema.safeParse(makeConfig({ maxIterations: -1 }));
+		const result = AgentConfigSchema.safeParse(
+			makeConfig({ maxIterations: -1 }),
+		);
 		expect(result.success).toBe(false);
 	});
 
 	test("maxIterations rejects non-integer values", () => {
-		const result = AgentConfigSchema.safeParse(makeConfig({ maxIterations: 2.5 }));
+		const result = AgentConfigSchema.safeParse(
+			makeConfig({ maxIterations: 2.5 }),
+		);
 		expect(result.success).toBe(false);
 	});
 
 	test("passThreshold accepts boundary values 0 and 10", () => {
-		expect(AgentConfigSchema.safeParse(makeConfig({ passThreshold: 0 })).success).toBe(true);
-		expect(AgentConfigSchema.safeParse(makeConfig({ passThreshold: 10 })).success).toBe(true);
+		expect(
+			AgentConfigSchema.safeParse(makeConfig({ passThreshold: 0 })).success,
+		).toBe(true);
+		expect(
+			AgentConfigSchema.safeParse(makeConfig({ passThreshold: 10 })).success,
+		).toBe(true);
 	});
 
 	test("passThreshold rejects values outside 0-10", () => {
-		expect(AgentConfigSchema.safeParse(makeConfig({ passThreshold: -1 })).success).toBe(false);
-		expect(AgentConfigSchema.safeParse(makeConfig({ passThreshold: 11 })).success).toBe(false);
+		expect(
+			AgentConfigSchema.safeParse(makeConfig({ passThreshold: -1 })).success,
+		).toBe(false);
+		expect(
+			AgentConfigSchema.safeParse(makeConfig({ passThreshold: 11 })).success,
+		).toBe(false);
 	});
 
 	test("maxEvaluatorRetries rejects negative values", () => {
-		const result = AgentConfigSchema.safeParse(makeConfig({ maxEvaluatorRetries: -1 }));
+		const result = AgentConfigSchema.safeParse(
+			makeConfig({ maxEvaluatorRetries: -1 }),
+		);
 		expect(result.success).toBe(false);
 	});
 

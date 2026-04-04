@@ -17,9 +17,7 @@ export const SessionStateSchema = z.object({
 	completedAt: z.iso.datetime().optional(),
 	costUsd: z.number().nonnegative().optional(),
 	tokensUsed: TokenUsageSchema.optional(),
-	result: z
-		.enum(["success", "error", "max_turns", "interrupted"])
-		.optional(),
+	result: z.enum(["success", "error", "max_turns", "interrupted"]).optional(),
 });
 
 export type SessionState = z.infer<typeof SessionStateSchema>;

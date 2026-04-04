@@ -1,8 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-	CriterionScoreSchema,
-	EvaluatorReportSchema,
-} from "./evaluator.js";
+import { CriterionScoreSchema, EvaluatorReportSchema } from "./evaluator.js";
 
 function makeCriterionScore(overrides?: Record<string, unknown>) {
 	return {
@@ -30,7 +27,8 @@ function makeEvaluatorReport(overrides?: Record<string, unknown>) {
 		scores: makeScores(),
 		overallScore: 7.5,
 		verdict: "pass",
-		summary: "Strong implementation with clean architecture. Minor style issues remain.",
+		summary:
+			"Strong implementation with clean architecture. Minor style issues remain.",
 		criticalIssues: [],
 		suggestions: ["Consider adding dark mode support"],
 		testsPerformed: [
@@ -52,46 +50,71 @@ describe("CriterionScoreSchema", () => {
 	});
 
 	test("accepts all four criterion values", () => {
-		const criteria = ["design_quality", "originality", "craft", "functionality"];
+		const criteria = [
+			"design_quality",
+			"originality",
+			"craft",
+			"functionality",
+		];
 		for (const criterion of criteria) {
-			const result = CriterionScoreSchema.safeParse(makeCriterionScore({ criterion }));
+			const result = CriterionScoreSchema.safeParse(
+				makeCriterionScore({ criterion }),
+			);
 			expect(result.success).toBe(true);
 		}
 	});
 
 	test("rejects invalid criterion", () => {
-		const result = CriterionScoreSchema.safeParse(makeCriterionScore({ criterion: "speed" }));
+		const result = CriterionScoreSchema.safeParse(
+			makeCriterionScore({ criterion: "speed" }),
+		);
 		expect(result.success).toBe(false);
 	});
 
 	test("rejects score below 0", () => {
-		const result = CriterionScoreSchema.safeParse(makeCriterionScore({ score: -1 }));
+		const result = CriterionScoreSchema.safeParse(
+			makeCriterionScore({ score: -1 }),
+		);
 		expect(result.success).toBe(false);
 	});
 
 	test("rejects score above 10", () => {
-		const result = CriterionScoreSchema.safeParse(makeCriterionScore({ score: 11 }));
+		const result = CriterionScoreSchema.safeParse(
+			makeCriterionScore({ score: 11 }),
+		);
 		expect(result.success).toBe(false);
 	});
 
 	test("accepts score boundary values 0 and 10", () => {
-		expect(CriterionScoreSchema.safeParse(makeCriterionScore({ score: 0 })).success).toBe(true);
-		expect(CriterionScoreSchema.safeParse(makeCriterionScore({ score: 10 })).success).toBe(true);
+		expect(
+			CriterionScoreSchema.safeParse(makeCriterionScore({ score: 0 })).success,
+		).toBe(true);
+		expect(
+			CriterionScoreSchema.safeParse(makeCriterionScore({ score: 10 })).success,
+		).toBe(true);
 	});
 
 	test("rejects weight below 0", () => {
-		const result = CriterionScoreSchema.safeParse(makeCriterionScore({ weight: -0.1 }));
+		const result = CriterionScoreSchema.safeParse(
+			makeCriterionScore({ weight: -0.1 }),
+		);
 		expect(result.success).toBe(false);
 	});
 
 	test("rejects weight above 1", () => {
-		const result = CriterionScoreSchema.safeParse(makeCriterionScore({ weight: 1.1 }));
+		const result = CriterionScoreSchema.safeParse(
+			makeCriterionScore({ weight: 1.1 }),
+		);
 		expect(result.success).toBe(false);
 	});
 
 	test("accepts weight boundary values 0 and 1", () => {
-		expect(CriterionScoreSchema.safeParse(makeCriterionScore({ weight: 0 })).success).toBe(true);
-		expect(CriterionScoreSchema.safeParse(makeCriterionScore({ weight: 1 })).success).toBe(true);
+		expect(
+			CriterionScoreSchema.safeParse(makeCriterionScore({ weight: 0 })).success,
+		).toBe(true);
+		expect(
+			CriterionScoreSchema.safeParse(makeCriterionScore({ weight: 1 })).success,
+		).toBe(true);
 	});
 
 	test("findings is required — rejects when omitted", () => {
@@ -101,7 +124,9 @@ describe("CriterionScoreSchema", () => {
 	});
 
 	test("findings rejects non-string types", () => {
-		const result = CriterionScoreSchema.safeParse(makeCriterionScore({ findings: 42 }));
+		const result = CriterionScoreSchema.safeParse(
+			makeCriterionScore({ findings: 42 }),
+		);
 		expect(result.success).toBe(false);
 	});
 });
@@ -114,13 +139,17 @@ describe("EvaluatorReportSchema", () => {
 
 	test("verdict accepts only pass and fail", () => {
 		expect(
-			EvaluatorReportSchema.safeParse(makeEvaluatorReport({ verdict: "pass" })).success,
+			EvaluatorReportSchema.safeParse(makeEvaluatorReport({ verdict: "pass" }))
+				.success,
 		).toBe(true);
 		expect(
-			EvaluatorReportSchema.safeParse(makeEvaluatorReport({ verdict: "fail" })).success,
+			EvaluatorReportSchema.safeParse(makeEvaluatorReport({ verdict: "fail" }))
+				.success,
 		).toBe(true);
 		expect(
-			EvaluatorReportSchema.safeParse(makeEvaluatorReport({ verdict: "partial" })).success,
+			EvaluatorReportSchema.safeParse(
+				makeEvaluatorReport({ verdict: "partial" }),
+			).success,
 		).toBe(false);
 	});
 
@@ -155,10 +184,12 @@ describe("EvaluatorReportSchema", () => {
 
 	test("overallScore rejects values outside 0-10", () => {
 		expect(
-			EvaluatorReportSchema.safeParse(makeEvaluatorReport({ overallScore: -1 })).success,
+			EvaluatorReportSchema.safeParse(makeEvaluatorReport({ overallScore: -1 }))
+				.success,
 		).toBe(false);
 		expect(
-			EvaluatorReportSchema.safeParse(makeEvaluatorReport({ overallScore: 11 })).success,
+			EvaluatorReportSchema.safeParse(makeEvaluatorReport({ overallScore: 11 }))
+				.success,
 		).toBe(false);
 	});
 
@@ -174,13 +205,17 @@ describe("EvaluatorReportSchema", () => {
 
 	test("sprintNumber must be a positive integer", () => {
 		expect(
-			EvaluatorReportSchema.safeParse(makeEvaluatorReport({ sprintNumber: 0 })).success,
+			EvaluatorReportSchema.safeParse(makeEvaluatorReport({ sprintNumber: 0 }))
+				.success,
 		).toBe(false);
 		expect(
-			EvaluatorReportSchema.safeParse(makeEvaluatorReport({ sprintNumber: -1 })).success,
+			EvaluatorReportSchema.safeParse(makeEvaluatorReport({ sprintNumber: -1 }))
+				.success,
 		).toBe(false);
 		expect(
-			EvaluatorReportSchema.safeParse(makeEvaluatorReport({ sprintNumber: 1.5 })).success,
+			EvaluatorReportSchema.safeParse(
+				makeEvaluatorReport({ sprintNumber: 1.5 }),
+			).success,
 		).toBe(false);
 	});
 
