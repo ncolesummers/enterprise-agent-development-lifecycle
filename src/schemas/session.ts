@@ -13,8 +13,8 @@ export const SessionStateSchema = z.object({
 	sessionId: z.string(),
 	agentType: z.enum(["initializer", "planner", "generator", "evaluator"]),
 	iteration: z.number().int().positive(),
-	startedAt: z.string().datetime(),
-	completedAt: z.string().datetime().optional(),
+	startedAt: z.iso.datetime(),
+	completedAt: z.iso.datetime().optional(),
 	costUsd: z.number().nonnegative().optional(),
 	tokensUsed: TokenUsageSchema.optional(),
 	result: z

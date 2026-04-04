@@ -23,7 +23,7 @@ export const CriterionScoreSchema = z.object({
 export type CriterionScore = z.infer<typeof CriterionScoreSchema>;
 
 export const EvaluatorReportSchema = z.object({
-	evaluatedAt: z.string().datetime(),
+	evaluatedAt: z.iso.datetime(),
 	sessionId: z.string(),
 	sprintNumber: z.number().int().positive().optional(),
 	scores: z.array(CriterionScoreSchema).length(4),
