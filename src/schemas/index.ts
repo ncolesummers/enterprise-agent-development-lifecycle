@@ -1,4 +1,10 @@
 export {
+	type BiomeDiagnostic,
+	BiomeDiagnosticSchema,
+	type BiomeReport,
+	BiomeReportSchema,
+} from "./biome.js";
+export {
 	type AgentConfig,
 	AgentConfigSchema,
 } from "./config.js";
@@ -15,6 +21,10 @@ export {
 	FeatureSchema,
 } from "./feature.js";
 export {
+	type OtelLogEntry,
+	OtelLogEntrySchema,
+} from "./otel.js";
+export {
 	type Plan,
 	PlanSchema,
 	type SprintContract,
@@ -22,14 +32,12 @@ export {
 	type TechnicalDesign,
 	TechnicalDesignSchema,
 } from "./plan.js";
-
 export {
 	type ProgressEntry,
 	ProgressEntrySchema,
 	type ProgressLog,
 	ProgressLogSchema,
 } from "./progress.js";
-
 export {
 	type SessionState,
 	SessionStateSchema,
