@@ -17,6 +17,8 @@ export {
 export {
 	type Plan,
 	PlanSchema,
+	type SprintContract,
+	SprintContractSchema,
 	type TechnicalDesign,
 	TechnicalDesignSchema,
 } from "./plan.js";
