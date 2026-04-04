@@ -24,7 +24,7 @@ export type TechnicalDesign = z.infer<typeof TechnicalDesignSchema>;
 export const PlanSchema = z.object({
 	projectName: z.string(),
 	description: z.string().describe("1-3 sentence project summary"),
-	createdAt: z.string().datetime(),
+	createdAt: z.iso.datetime(),
 	technicalDesign: TechnicalDesignSchema,
 	features: FeatureListSchema,
 	sprintDecomposition: z
@@ -61,7 +61,7 @@ export const SprintContractSchema = z.object({
 		.describe(
 			"Specific, testable behaviors that define 'done' for this sprint",
 		),
-	negotiatedAt: z.string().datetime(),
+	negotiatedAt: z.iso.datetime(),
 	generatorAcknowledged: z.boolean().default(false),
 });
 

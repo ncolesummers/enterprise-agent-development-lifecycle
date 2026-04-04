@@ -38,12 +38,16 @@ describe("ProgressEntrySchema", () => {
 	});
 
 	test("rejects invalid sessionType", () => {
-		const result = ProgressEntrySchema.safeParse(makeEntry({ sessionType: "unknown" }));
+		const result = ProgressEntrySchema.safeParse(
+			makeEntry({ sessionType: "unknown" }),
+		);
 		expect(result.success).toBe(false);
 	});
 
 	test("rejects non-ISO-8601 timestamp", () => {
-		const result = ProgressEntrySchema.safeParse(makeEntry({ timestamp: "April 4 2026" }));
+		const result = ProgressEntrySchema.safeParse(
+			makeEntry({ timestamp: "April 4 2026" }),
+		);
 		expect(result.success).toBe(false);
 	});
 
@@ -109,7 +113,9 @@ describe("ProgressEntrySchema", () => {
 	});
 
 	test("accepts durationMs when provided", () => {
-		const result = ProgressEntrySchema.safeParse(makeEntry({ durationMs: 5000 }));
+		const result = ProgressEntrySchema.safeParse(
+			makeEntry({ durationMs: 5000 }),
+		);
 		expect(result.success).toBe(true);
 		if (result.success) {
 			expect(result.data.durationMs).toBe(5000);
@@ -131,12 +137,16 @@ describe("ProgressLogSchema", () => {
 	});
 
 	test("parses a valid log with entries", () => {
-		const result = ProgressLogSchema.safeParse(makeLog({ entries: [makeEntry()] }));
+		const result = ProgressLogSchema.safeParse(
+			makeLog({ entries: [makeEntry()] }),
+		);
 		expect(result.success).toBe(true);
 	});
 
 	test("rejects non-ISO-8601 startedAt", () => {
-		const result = ProgressLogSchema.safeParse(makeLog({ startedAt: "not a date" }));
+		const result = ProgressLogSchema.safeParse(
+			makeLog({ startedAt: "not a date" }),
+		);
 		expect(result.success).toBe(false);
 	});
 

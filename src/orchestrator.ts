@@ -15,7 +15,7 @@ import {
 	type Span,
 } from "./otel/index.js";
 import type { AgentConfig } from "./schemas/config.js";
-import { EvaluatorReportSchema } from "./schemas/evaluation.js";
+import { EvaluatorReportSchema } from "./schemas/evaluator.js";
 import { FeatureListSchema } from "./schemas/feature.js";
 import { PlanSchema } from "./schemas/plan.js";
 import { runAgentSession } from "./sdk-wrapper.js";

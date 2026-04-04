@@ -7,7 +7,7 @@ export {
 	CriterionScoreSchema,
 	type EvaluatorReport,
 	EvaluatorReportSchema,
-} from "./evaluation.js";
+} from "./evaluator.js";
 export {
 	type Feature,
 	type FeatureList,
@@ -29,3 +29,10 @@ export {
 	type ProgressLog,
 	ProgressLogSchema,
 } from "./progress.js";
+
+export {
+	type SessionState,
+	SessionStateSchema,
+	type TokenUsage,
+	TokenUsageSchema,
+} from "./session.js";

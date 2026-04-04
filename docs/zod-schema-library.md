@@ -149,7 +149,7 @@ export type FeatureList = z.infer<typeof FeatureListSchema>;
 ```typescript
 // Structured equivalent of claude-progress.txt
 export const ProgressEntrySchema = z.object({
-  timestamp: z.string().datetime().describe("ISO 8601 timestamp"),
+  timestamp: z.iso.datetime().describe("ISO 8601 timestamp"),
   sessionId: z.string().describe("Agent SDK session ID"),
   sessionType: z.enum(["initializer", "planner", "generator", "evaluator"]),
   iteration: z.number().int().positive(),
@@ -170,7 +170,7 @@ export type ProgressEntry = z.infer<typeof ProgressEntrySchema>;
 
 export const ProgressLogSchema = z.object({
   projectName: z.string(),
-  startedAt: z.string().datetime(),
+  startedAt: z.iso.datetime(),
   entries: z.array(ProgressEntrySchema),
 });
 
@@ -201,7 +201,7 @@ export const TechnicalDesignSchema = z.object({
 export const PlanSchema = z.object({
   projectName: z.string(),
   description: z.string().describe("1-3 sentence project summary"),
-  createdAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
   technicalDesign: TechnicalDesignSchema,
   features: FeatureListSchema,
   sprintDecomposition: z.array(
@@ -239,7 +239,7 @@ export const SprintContractSchema = z.object({
   ).describe(
     "Specific, testable behaviors that define 'done' for this sprint"
   ),
-  negotiatedAt: z.string().datetime(),
+  negotiatedAt: z.iso.datetime(),
   generatorAcknowledged: z.boolean().default(false),
 });
 
@@ -266,7 +266,7 @@ export const CriterionScoreSchema = z.object({
 });
 
 export const EvaluatorReportSchema = z.object({
-  evaluatedAt: z.string().datetime(),
+  evaluatedAt: z.iso.datetime(),
   sessionId: z.string(),
   sprintNumber: z.number().int().positive().optional(),
   scores: z.array(CriterionScoreSchema).length(4),
@@ -321,7 +321,7 @@ export const AgentConfigSchema = z.object({
   maxEvaluatorRetries: z.number().int().nonnegative().default(3),
   enableBiomeHooks: z.boolean().default(true),
   enableOtel: z.boolean().default(true),
-  otelEndpoint: z.string().default("http://localhost:4317"),
+  otelEndpoint: z.string().default("http://localhost:4318"),
 });
 
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;
@@ -334,8 +334,8 @@ export const SessionStateSchema = z.object({
   sessionId: z.string(),
   agentType: z.enum(["initializer", "planner", "generator", "evaluator"]),
   iteration: z.number().int().positive(),
-  startedAt: z.string().datetime(),
-  completedAt: z.string().datetime().optional(),
+  startedAt: z.iso.datetime(),
+  completedAt: z.iso.datetime().optional(),
   costUsd: z.number().nonnegative().optional(),
   tokensUsed: z.object({
     input: z.number().int().nonnegative(),
@@ -367,7 +367,7 @@ export const BiomeDiagnosticSchema = z.object({
 export type BiomeDiagnostic = z.infer<typeof BiomeDiagnosticSchema>;
 
 export const BiomeReportSchema = z.object({
-  timestamp: z.string().datetime(),
+  timestamp: z.iso.datetime(),
   filesChecked: z.number().int().nonnegative(),
   diagnostics: z.array(BiomeDiagnosticSchema),
   summary: z.object({
@@ -405,7 +405,7 @@ export const OtelLogEntrySchema = z.object({
   traceId: z.string().optional(),
   spanId: z.string().optional(),
   attributes: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])),
-  timestamp: z.string().datetime(),
+  timestamp: z.iso.datetime(),
 });
 
 export type OtelLogEntry = z.infer<typeof OtelLogEntrySchema>;

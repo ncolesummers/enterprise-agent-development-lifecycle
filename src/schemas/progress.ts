@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const ProgressEntrySchema = z.object({
-	timestamp: z.string().datetime().describe("ISO 8601 timestamp"),
+	timestamp: z.iso.datetime().describe("ISO 8601 timestamp"),
 	sessionId: z.string().describe("Agent SDK session ID"),
 	sessionType: z.enum(["initializer", "planner", "generator", "evaluator"]),
 	iteration: z.number().int().positive(),
@@ -24,7 +24,7 @@ export type ProgressEntry = z.infer<typeof ProgressEntrySchema>;
 
 export const ProgressLogSchema = z.object({
 	projectName: z.string(),
-	startedAt: z.string().datetime(),
+	startedAt: z.iso.datetime(),
 	entries: z.array(ProgressEntrySchema),
 });
 
