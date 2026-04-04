@@ -1,27 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { OtelLogEntrySchema } from "./otel.js";
 
-const ALL_EVENTS = [
-	"session_start",
-	"session_end",
-	"tool_call_start",
-	"tool_call_end",
-	"tool_call_error",
-	"feature_start",
-	"feature_completed",
-	"feature_fail",
-	"evaluation_start",
-	"evaluation_verdict",
-	"biome_check",
-	"biome_fix",
-	"biome_commit_gate",
-	"compaction",
-	"subagent_start",
-	"subagent_stop",
-	"context_reset",
-	"error",
-	"cost_update",
-] as const;
+const ALL_EVENTS = OtelLogEntrySchema.shape.event.options;
 
 function makeOtelLogEntry(overrides?: Record<string, unknown>) {
 	return {
