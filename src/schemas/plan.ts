@@ -44,3 +44,25 @@ export const PlanSchema = z.object({
 });
 
 export type Plan = z.infer<typeof PlanSchema>;
+
+export const SprintContractSchema = z.object({
+	sprintNumber: z.number().int().positive(),
+	featureScope: z
+		.array(z.string())
+		.describe("Feature descriptions to implement in this sprint"),
+	acceptanceCriteria: z
+		.array(
+			z.object({
+				criterion: z.string(),
+				testableBy: z.enum(["browser", "api", "unit", "manual"]),
+				description: z.string(),
+			}),
+		)
+		.describe(
+			"Specific, testable behaviors that define 'done' for this sprint",
+		),
+	negotiatedAt: z.string().datetime(),
+	generatorAcknowledged: z.boolean().default(false),
+});
+
+export type SprintContract = z.infer<typeof SprintContractSchema>;
