@@ -7,7 +7,7 @@ export {
 	CriterionScoreSchema,
 	type EvaluatorReport,
 	EvaluatorReportSchema,
-} from "./evaluation.js";
+} from "./evaluator.js";
 export {
 	type Feature,
 	type FeatureList,
