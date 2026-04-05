@@ -16,11 +16,7 @@ import {
 } from "./otel/index.js";
 import type { AgentConfig } from "./schemas/config.js";
 import { runAgentSession } from "./sdk-wrapper.js";
-import {
-	readEvaluationReport,
-	readFeatureList,
-	readPlan,
-} from "./state.js";
+import { readEvaluationReport, readFeatureList, readPlan } from "./state.js";
 
 // ---------------------------------------------------------------------------
 // State detection

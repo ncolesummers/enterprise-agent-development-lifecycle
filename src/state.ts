@@ -119,10 +119,7 @@ export async function readPlan(projectDir: string): Promise<Plan | null> {
 	return readStateFile(projectDir, STATE_FILES.plan, PlanSchema);
 }
 
-export async function writePlan(
-	projectDir: string,
-	data: Plan,
-): Promise<void> {
+export async function writePlan(projectDir: string, data: Plan): Promise<void> {
 	return writeStateFile(projectDir, STATE_FILES.plan, PlanSchema, data);
 }
 

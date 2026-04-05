@@ -1,13 +1,14 @@
-import {
-	afterEach,
-	beforeEach,
-	describe,
-	expect,
-	test,
-} from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
+import type {
+	EvaluatorReport,
+	FeatureList,
+	Plan,
+	ProgressLog,
+	SprintContract,
+} from "./schemas/index.js";
 import {
 	readEvaluationReport,
 	readFeatureList,
@@ -22,10 +23,12 @@ import {
 } from "./state.js";
 
 // ---------------------------------------------------------------------------
-// Factories
+// Factories — return fully typed objects matching Zod output types
 // ---------------------------------------------------------------------------
 
-function makeFeature(overrides?: Record<string, unknown>) {
+function makeFeature(
+	overrides?: Partial<FeatureList[number]>,
+): FeatureList[number] {
 	return {
 		category: "functional",
 		description: "User can log in with valid credentials",
@@ -34,15 +37,16 @@ function makeFeature(overrides?: Record<string, unknown>) {
 			"Enter valid email and password",
 			"Click submit",
 		],
+		passes: false,
 		...overrides,
 	};
 }
 
-function makeFeatureList() {
+function makeFeatureList(): FeatureList {
 	return [makeFeature()];
 }
 
-function makeProgressLog(overrides?: Record<string, unknown>) {
+function makeProgressLog(overrides?: Partial<ProgressLog>): ProgressLog {
 	return {
 		projectName: "hello-world",
 		startedAt: "2026-04-04T10:00:00.000Z",
@@ -51,7 +55,7 @@ function makeProgressLog(overrides?: Record<string, unknown>) {
 	};
 }
 
-function makeTechnicalDesign() {
+function makeTechnicalDesign(): Plan["technicalDesign"] {
 	return {
 		stack: {
 			runtime: "bun",
@@ -65,7 +69,7 @@ function makeTechnicalDesign() {
 	};
 }
 
-function makePlan(overrides?: Record<string, unknown>) {
+function makePlan(overrides?: Partial<Plan>): Plan {
 	return {
 		projectName: "test-project",
 		description: "A test project for validating plan schemas",
@@ -76,7 +80,7 @@ function makePlan(overrides?: Record<string, unknown>) {
 	};
 }
 
-function makeScores() {
+function makeScores(): EvaluatorReport["scores"] {
 	return [
 		{
 			criterion: "design_quality",
@@ -105,12 +109,15 @@ function makeScores() {
 	];
 }
 
-function makeEvaluatorReport(overrides?: Record<string, unknown>) {
+function makeEvaluatorReport(
+	overrides?: Partial<EvaluatorReport>,
+): EvaluatorReport {
 	return {
 		evaluatedAt: "2026-04-04T12:00:00Z",
 		sessionId: "session-abc-123",
 		scores: makeScores(),
 		overallScore: 7.5,
+		passThreshold: 6,
 		verdict: "pass",
 		summary:
 			"Strong implementation with clean architecture. Minor style issues remain.",
@@ -128,7 +135,9 @@ function makeEvaluatorReport(overrides?: Record<string, unknown>) {
 	};
 }
 
-function makeSprintContract(overrides?: Record<string, unknown>) {
+function makeSprintContract(
+	overrides?: Partial<SprintContract>,
+): SprintContract {
 	return {
 		sprintNumber: 1,
 		featureScope: ["User authentication", "Dashboard layout"],
@@ -140,6 +149,7 @@ function makeSprintContract(overrides?: Record<string, unknown>) {
 			},
 		],
 		negotiatedAt: "2026-04-04T12:00:00Z",
+		generatorAcknowledged: false,
 		...overrides,
 	};
 }
@@ -194,11 +204,16 @@ describe("write then read round-trips correctly", () => {
 		await writeFeatureList(tmpDir, data);
 		const result = await readFeatureList(tmpDir);
 		expect(result).not.toBeNull();
-		expect(result).toHaveLength(1);
-		expect(result![0].description).toBe(
-			"User can log in with valid credentials",
-		);
-		expect(result![0].passes).toBe(false);
+		if (result) {
+			expect(result).toHaveLength(1);
+			const first = result[0];
+			if (first) {
+				expect(first.description).toBe(
+					"User can log in with valid credentials",
+				);
+				expect(first.passes).toBe(false);
+			}
+		}
 	});
 
 	test("progress log", async () => {
@@ -206,8 +221,8 @@ describe("write then read round-trips correctly", () => {
 		await writeProgress(tmpDir, data);
 		const result = await readProgress(tmpDir);
 		expect(result).not.toBeNull();
-		expect(result!.projectName).toBe("hello-world");
-		expect(result!.entries).toHaveLength(0);
+		expect(result?.projectName).toBe("hello-world");
+		expect(result?.entries).toHaveLength(0);
 	});
 
 	test("plan", async () => {
@@ -215,8 +230,8 @@ describe("write then read round-trips correctly", () => {
 		await writePlan(tmpDir, data);
 		const result = await readPlan(tmpDir);
 		expect(result).not.toBeNull();
-		expect(result!.projectName).toBe("test-project");
-		expect(result!.features).toHaveLength(1);
+		expect(result?.projectName).toBe("test-project");
+		expect(result?.features).toHaveLength(1);
 	});
 
 	test("evaluation report", async () => {
@@ -224,9 +239,9 @@ describe("write then read round-trips correctly", () => {
 		await writeEvaluationReport(tmpDir, data);
 		const result = await readEvaluationReport(tmpDir);
 		expect(result).not.toBeNull();
-		expect(result!.verdict).toBe("pass");
-		expect(result!.overallScore).toBe(7.5);
-		expect(result!.scores).toHaveLength(4);
+		expect(result?.verdict).toBe("pass");
+		expect(result?.overallScore).toBe(7.5);
+		expect(result?.scores).toHaveLength(4);
 	});
 
 	test("sprint contract", async () => {
@@ -234,8 +249,8 @@ describe("write then read round-trips correctly", () => {
 		await writeSprintContract(tmpDir, data);
 		const result = await readSprintContract(tmpDir);
 		expect(result).not.toBeNull();
-		expect(result!.sprintNumber).toBe(1);
-		expect(result!.generatorAcknowledged).toBe(false);
+		expect(result?.sprintNumber).toBe(1);
+		expect(result?.generatorAcknowledged).toBe(false);
 	});
 });
 
@@ -255,21 +270,21 @@ describe("read throws ZodError on invalid data", () => {
 	test("progress log with invalid sessionType", async () => {
 		await Bun.write(
 			resolve(tmpDir, "progress.json"),
-			JSON.stringify(
-				makeProgressLog({
-					entries: [
-						{
-							timestamp: "2026-04-04T12:00:00Z",
-							sessionId: "s1",
-							sessionType: "unknown_type",
-							iteration: 1,
-							featuresAttempted: [],
-							featuresCompleted: [],
-							notes: "test",
-						},
-					],
-				}),
-			),
+			JSON.stringify({
+				projectName: "hello-world",
+				startedAt: "2026-04-04T10:00:00.000Z",
+				entries: [
+					{
+						timestamp: "2026-04-04T12:00:00Z",
+						sessionId: "s1",
+						sessionType: "unknown_type",
+						iteration: 1,
+						featuresAttempted: [],
+						featuresCompleted: [],
+						notes: "test",
+					},
+				],
+			}),
 		);
 		await expect(readProgress(tmpDir)).rejects.toThrow();
 	});
@@ -288,9 +303,13 @@ describe("read throws ZodError on invalid data", () => {
 	});
 
 	test("evaluation report with wrong number of scores", async () => {
+		const singleScore = makeScores()[0];
 		await Bun.write(
 			resolve(tmpDir, "evaluation_report.json"),
-			JSON.stringify(makeEvaluatorReport({ scores: [makeScores()[0]] })),
+			JSON.stringify({
+				...makeEvaluatorReport(),
+				scores: [singleScore],
+			}),
 		);
 		await expect(readEvaluationReport(tmpDir)).rejects.toThrow();
 	});
@@ -298,17 +317,16 @@ describe("read throws ZodError on invalid data", () => {
 	test("sprint contract with invalid testableBy enum", async () => {
 		await Bun.write(
 			resolve(tmpDir, "sprint_contract.json"),
-			JSON.stringify(
-				makeSprintContract({
-					acceptanceCriteria: [
-						{
-							criterion: "Test",
-							testableBy: "invalid_method",
-							description: "Desc",
-						},
-					],
-				}),
-			),
+			JSON.stringify({
+				...makeSprintContract(),
+				acceptanceCriteria: [
+					{
+						criterion: "Test",
+						testableBy: "invalid_method",
+						description: "Desc",
+					},
+				],
+			}),
 		);
 		await expect(readSprintContract(tmpDir)).rejects.toThrow();
 	});
@@ -320,40 +338,42 @@ describe("read throws ZodError on invalid data", () => {
 
 describe("write throws ZodError on invalid data without writing", () => {
 	test("feature list with empty array", async () => {
-		await expect(writeFeatureList(tmpDir, [])).rejects.toThrow();
+		await expect(
+			writeFeatureList(tmpDir, [] as unknown as FeatureList),
+		).rejects.toThrow();
 		expect(await readFeatureList(tmpDir)).toBeNull();
 	});
 
 	test("progress log with missing projectName", async () => {
 		await expect(
-			writeProgress(tmpDir, { startedAt: "2026-04-04T10:00:00Z", entries: [] } as never),
+			writeProgress(tmpDir, {
+				startedAt: "2026-04-04T10:00:00Z",
+				entries: [],
+			} as unknown as ProgressLog),
 		).rejects.toThrow();
 		expect(await readProgress(tmpDir)).toBeNull();
 	});
 
 	test("plan with invalid createdAt", async () => {
 		await expect(
-			writePlan(tmpDir, makePlan({ createdAt: "not-a-date" }) as never),
+			writePlan(
+				tmpDir,
+				makePlan({ createdAt: "not-a-date" } as unknown as Partial<Plan>),
+			),
 		).rejects.toThrow();
 		expect(await readPlan(tmpDir)).toBeNull();
 	});
 
 	test("evaluation report with out-of-range score", async () => {
 		await expect(
-			writeEvaluationReport(
-				tmpDir,
-				makeEvaluatorReport({ overallScore: 15 }) as never,
-			),
+			writeEvaluationReport(tmpDir, makeEvaluatorReport({ overallScore: 15 })),
 		).rejects.toThrow();
 		expect(await readEvaluationReport(tmpDir)).toBeNull();
 	});
 
 	test("sprint contract with non-positive sprintNumber", async () => {
 		await expect(
-			writeSprintContract(
-				tmpDir,
-				makeSprintContract({ sprintNumber: 0 }) as never,
-			),
+			writeSprintContract(tmpDir, makeSprintContract({ sprintNumber: 0 })),
 		).rejects.toThrow();
 		expect(await readSprintContract(tmpDir)).toBeNull();
 	});
@@ -373,9 +393,7 @@ describe("atomic write behavior", () => {
 
 	test("writes are pretty-printed JSON", async () => {
 		await writeFeatureList(tmpDir, makeFeatureList());
-		const content = await Bun.file(
-			resolve(tmpDir, "feature_list.json"),
-		).text();
+		const content = await Bun.file(resolve(tmpDir, "feature_list.json")).text();
 		expect(content).toContain("\n");
 		expect(content).toContain("  ");
 	});
@@ -384,15 +402,15 @@ describe("atomic write behavior", () => {
 		const original = makeFeatureList();
 		await writeFeatureList(tmpDir, original);
 
-		const updated = [
+		const updated: FeatureList = [
 			makeFeature({ description: "Updated feature description here" }),
 		];
 		await writeFeatureList(tmpDir, updated);
 
 		const result = await readFeatureList(tmpDir);
-		expect(result![0].description).toBe(
-			"Updated feature description here",
-		);
+		if (result?.[0]) {
+			expect(result[0].description).toBe("Updated feature description here");
+		}
 
 		const files = await readdir(tmpDir);
 		const tmpFiles = files.filter((f) => f.includes(".tmp."));
@@ -406,10 +424,7 @@ describe("atomic write behavior", () => {
 
 describe("edge cases", () => {
 	test("read malformed JSON throws", async () => {
-		await Bun.write(
-			resolve(tmpDir, "feature_list.json"),
-			"not valid json {{{",
-		);
+		await Bun.write(resolve(tmpDir, "feature_list.json"), "not valid json {{{");
 		await expect(readFeatureList(tmpDir)).rejects.toThrow();
 	});
 
@@ -417,6 +432,9 @@ describe("edge cases", () => {
 		await writePlan(tmpDir, makePlan({ projectName: "first" }));
 		await writePlan(tmpDir, makePlan({ projectName: "second" }));
 		const result = await readPlan(tmpDir);
-		expect(result!.projectName).toBe("second");
+		expect(result).not.toBeNull();
+		if (result) {
+			expect(result.projectName).toBe("second");
+		}
 	});
 });
