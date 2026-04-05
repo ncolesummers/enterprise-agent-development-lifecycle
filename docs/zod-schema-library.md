@@ -152,7 +152,7 @@ export type FeatureList = z.infer<typeof FeatureListSchema>;
 export const ProgressEntrySchema = z.object({
   timestamp: z.iso.datetime().describe("ISO 8601 timestamp"),
   sessionId: z.string().describe("Agent SDK session ID"),
-  sessionType: z.enum(["initializer", "planner", "generator", "evaluator"]),
+  sessionType: z.enum(["initializer", "planner", "generator", "evaluator", "coding"]),
   iteration: z.number().int().positive(),
   featuresAttempted: z.array(z.string()).describe(
     "Feature descriptions attempted this session"
@@ -324,7 +324,7 @@ export const AgentConfigSchema = z.object({
   enableOtel: z.boolean().default(true),
   otelEndpoint: z.string().default("http://localhost:4318"),
   agentOverride: z.enum([
-    "initializer", "planner", "generator", "evaluator"
+    "initializer", "planner", "generator", "evaluator", "coding"
   ]).optional().describe(
     "Override: run only this agent type instead of the full orchestrator loop"
   ),
@@ -338,7 +338,7 @@ export type AgentConfig = z.infer<typeof AgentConfigSchema>;
 ```typescript
 export const SessionStateSchema = z.object({
   sessionId: z.string(),
-  agentType: z.enum(["initializer", "planner", "generator", "evaluator"]),
+  agentType: z.enum(["initializer", "planner", "generator", "evaluator", "coding"]),
   iteration: z.number().int().positive(),
   startedAt: z.iso.datetime(),
   completedAt: z.iso.datetime().optional(),
@@ -412,7 +412,7 @@ export const OtelLogEntrySchema = z.object({
     "error",
     "cost_update",
   ]),
-  agentType: z.enum(["initializer", "planner", "generator", "evaluator"]),
+  agentType: z.enum(["initializer", "planner", "generator", "evaluator", "coding"]),
   sessionId: z.string(),
   traceId: z.string().optional(),
   spanId: z.string().optional(),
