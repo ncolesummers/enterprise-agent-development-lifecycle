@@ -314,35 +314,52 @@ export async function bashSecurityHook(
 }
 ```
 
-#### `progress.py` → `src/progress.ts`
+#### `progress.py` → `src/state.ts`
+
+File-based state management with Zod validation at every read/write boundary and atomic writes (temp file + rename) to prevent corruption on crash. Each state file has a typed read function (returns `null` if missing) and a typed write function.
 
 ```typescript
-// src/progress.ts
+// src/state.ts
+import { rename, unlink } from "node:fs/promises";
 import { resolve } from "node:path";
-import { FeatureListSchema, type Feature } from "./schemas";
+import type { z } from "zod";
+import {
+  type FeatureList, FeatureListSchema,
+  type ProgressLog, ProgressLogSchema,
+  type Plan, PlanSchema,
+  type EvaluatorReport, EvaluatorReportSchema,
+  type SprintContract, SprintContractSchema,
+} from "./schemas/index.js";
 
-export async function featureListExists(projectDir: string): Promise<boolean> {
-  return Bun.file(resolve(projectDir, "feature_list.json")).exists();
+async function readStateFile<T>(
+  projectDir: string, filename: string, schema: z.ZodType<T>,
+): Promise<T | null> {
+  const file = Bun.file(resolve(projectDir, filename));
+  if (!(await file.exists())) return null;
+  return schema.parse(await file.json());
 }
 
-export async function readFeatureList(projectDir: string): Promise<Feature[]> {
-  const file = Bun.file(resolve(projectDir, "feature_list.json"));
-  const raw = await file.json();
-  return FeatureListSchema.parse(raw);
+async function writeStateFile<T>(
+  projectDir: string, filename: string, schema: z.ZodType<T>, data: T,
+): Promise<void> {
+  const validated = schema.parse(data);
+  const targetPath = resolve(projectDir, filename);
+  const tmpPath = `${targetPath}.tmp.${Date.now()}`;
+  try {
+    await Bun.write(tmpPath, JSON.stringify(validated, null, 2));
+    await rename(tmpPath, targetPath);
+  } catch (err) {
+    try { await unlink(tmpPath); } catch {}
+    throw err;
+  }
 }
 
-export async function countPassingTests(
-  projectDir: string,
-): Promise<{ passing: number; total: number }> {
-  const features = await readFeatureList(projectDir);
-  const passing = features.filter((f) => f.passes).length;
-  return { passing, total: features.length };
-}
-
-export function printProgress(passing: number, total: number): void {
-  const pct = total > 0 ? ((passing / total) * 100).toFixed(1) : "0.0";
-  console.log(`Progress: ${passing}/${total} features passing (${pct}%)`);
-}
+// Public API — one read/write pair per state file:
+// readFeatureList / writeFeatureList       → feature_list.json
+// readProgress / writeProgress             → progress.json
+// readPlan / writePlan                     → plan.json
+// readEvaluationReport / writeEvaluationReport → evaluation_report.json
+// readSprintContract / writeSprintContract → sprint_contract.json
 ```
 
 #### `prompts.py` → `src/prompts.ts`
@@ -386,7 +403,7 @@ agent-harness/
 │   ├── agent.ts                   # Session logic (← agent.py)
 │   ├── client.ts                  # SDK configuration (← client.py)
 │   ├── security.ts                # Bash allowlist (← security.py)
-│   ├── progress.ts                # Progress tracking (← progress.py)
+│   ├── state.ts                   # File-based state management (← progress.py)
 │   ├── prompts.ts                 # Prompt loading (← prompts.py)
 │   ├── schemas.ts                 # All Zod schemas (NEW)
 │   ├── observability.ts           # OTel instrumentation (NEW)
