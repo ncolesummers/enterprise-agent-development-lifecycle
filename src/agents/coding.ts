@@ -1,9 +1,9 @@
-import type { OtelContext, Span } from "../otel/index.js";
-import type { AgentConfig } from "../schemas/config.js";
-import { runAgentSession } from "../sdk-wrapper.js";
 import { createAgentBrowserHooks } from "../hooks/agent-browser.js";
 import { createBiomeHooks } from "../hooks/biome.js";
 import { bashSecurityHook } from "../hooks/security.js";
+import type { OtelContext, Span } from "../otel/index.js";
+import type { AgentConfig } from "../schemas/config.js";
+import { runAgentSession } from "../sdk-wrapper.js";
 import { getCodingPrompt } from "./prompts.js";
 
 export async function runCodingSession(

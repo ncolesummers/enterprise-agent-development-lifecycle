@@ -11,7 +11,13 @@ export type TokenUsage = z.infer<typeof TokenUsageSchema>;
 
 export const SessionStateSchema = z.object({
 	sessionId: z.string(),
-	agentType: z.enum(["initializer", "planner", "generator", "evaluator", "coding"]),
+	agentType: z.enum([
+		"initializer",
+		"planner",
+		"generator",
+		"evaluator",
+		"coding",
+	]),
 	iteration: z.number().int().positive(),
 	startedAt: z.iso.datetime(),
 	completedAt: z.iso.datetime().optional(),

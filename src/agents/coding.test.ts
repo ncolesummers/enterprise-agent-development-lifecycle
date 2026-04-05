@@ -105,7 +105,7 @@ describe("runCodingSession", () => {
 		await runCodingSession(config, otel, span, 1);
 
 		expect(capturedOptions).toBeDefined();
-		expect(capturedOptions!.agentType).toBe("coding");
+		expect(capturedOptions?.agentType).toBe("coding");
 	});
 
 	test("uses correct tools list", async () => {
@@ -115,7 +115,7 @@ describe("runCodingSession", () => {
 
 		await runCodingSession(config, otel, span, 1);
 
-		expect(capturedOptions!.allowedTools).toEqual([
+		expect(capturedOptions?.allowedTools).toEqual([
 			"Read",
 			"Write",
 			"Edit",
@@ -132,7 +132,7 @@ describe("runCodingSession", () => {
 
 		await runCodingSession(config, otel, span, 1);
 
-		expect(capturedOptions!.model).toBe("claude-haiku-4-5-20251001");
+		expect(capturedOptions?.model).toBe("claude-haiku-4-5-20251001");
 	});
 
 	test("sets cwd to config.projectDir", async () => {
@@ -142,7 +142,7 @@ describe("runCodingSession", () => {
 
 		await runCodingSession(config, otel, span, 1);
 
-		expect(capturedOptions!.cwd).toBe("/custom/project");
+		expect(capturedOptions?.cwd).toBe("/custom/project");
 	});
 
 	test("includes bash security hook in PreToolUse", async () => {
@@ -152,10 +152,10 @@ describe("runCodingSession", () => {
 
 		await runCodingSession(config, otel, span, 1);
 
-		const preToolUse = capturedOptions!.hooks?.PreToolUse;
+		const preToolUse = capturedOptions?.hooks?.PreToolUse;
 		expect(preToolUse).toBeDefined();
-		expect(preToolUse!.length).toBeGreaterThan(0);
-		expect(preToolUse![0].matcher).toBe("Bash");
+		expect(preToolUse?.length).toBeGreaterThan(0);
+		expect(preToolUse?.[0].matcher).toBe("Bash");
 	});
 
 	test("passes OTel env when enableOtel is true", async () => {
@@ -165,9 +165,9 @@ describe("runCodingSession", () => {
 
 		await runCodingSession(config, otel, span, 1);
 
-		expect(capturedOptions!.env).toBeDefined();
-		expect(capturedOptions!.env!.CLAUDE_CODE_ENABLE_TELEMETRY).toBe("1");
-		expect(capturedOptions!.env!.OTEL_EXPORTER_OTLP_ENDPOINT).toBe(
+		expect(capturedOptions?.env).toBeDefined();
+		expect(capturedOptions?.env?.CLAUDE_CODE_ENABLE_TELEMETRY).toBe("1");
+		expect(capturedOptions?.env?.OTEL_EXPORTER_OTLP_ENDPOINT).toBe(
 			"http://localhost:4318",
 		);
 	});
@@ -179,7 +179,7 @@ describe("runCodingSession", () => {
 
 		await runCodingSession(config, otel, span, 1);
 
-		expect(capturedOptions!.env).toBeUndefined();
+		expect(capturedOptions?.env).toBeUndefined();
 	});
 
 	test("passes iteration as span attribute", async () => {
@@ -189,6 +189,6 @@ describe("runCodingSession", () => {
 
 		await runCodingSession(config, otel, span, 3);
 
-		expect(capturedOptions!.spanAttributes).toEqual({ iteration: 3 });
+		expect(capturedOptions?.spanAttributes).toEqual({ iteration: 3 });
 	});
 });

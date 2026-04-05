@@ -108,7 +108,13 @@ describe("AgentConfigSchema", () => {
 	});
 
 	test("agentOverride accepts each valid agent type", () => {
-		for (const agent of ["initializer", "planner", "generator", "evaluator", "coding"]) {
+		for (const agent of [
+			"initializer",
+			"planner",
+			"generator",
+			"evaluator",
+			"coding",
+		]) {
 			const result = AgentConfigSchema.safeParse(
 				makeConfig({ agentOverride: agent }),
 			);

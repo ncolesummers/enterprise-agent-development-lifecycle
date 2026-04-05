@@ -3,7 +3,13 @@ import { z } from "zod";
 export const ProgressEntrySchema = z.object({
 	timestamp: z.iso.datetime().describe("ISO 8601 timestamp"),
 	sessionId: z.string().describe("Agent SDK session ID"),
-	sessionType: z.enum(["initializer", "planner", "generator", "evaluator", "coding"]),
+	sessionType: z.enum([
+		"initializer",
+		"planner",
+		"generator",
+		"evaluator",
+		"coding",
+	]),
 	iteration: z.number().int().positive(),
 	featuresAttempted: z
 		.array(z.string())

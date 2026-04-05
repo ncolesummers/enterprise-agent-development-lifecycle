@@ -265,12 +265,7 @@ async function runEvaluatorSession(
 
 export async function runSingleAgent(
 	config: AgentConfig,
-	agentType:
-		| "initializer"
-		| "planner"
-		| "generator"
-		| "evaluator"
-		| "coding",
+	agentType: "initializer" | "planner" | "generator" | "evaluator" | "coding",
 ): Promise<void> {
 	const otel = config.enableOtel
 		? createOtelContext(config)
