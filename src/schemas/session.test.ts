@@ -83,7 +83,7 @@ describe("SessionStateSchema", () => {
 	});
 
 	test("accepts all agentType values", () => {
-		const types = ["initializer", "planner", "generator", "evaluator"];
+		const types = ["initializer", "planner", "generator", "evaluator", "coding"];
 		for (const agentType of types) {
 			const result = SessionStateSchema.safeParse(makeSession({ agentType }));
 			expect(result.success).toBe(true);

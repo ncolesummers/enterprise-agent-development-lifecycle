@@ -30,7 +30,7 @@ describe("ProgressEntrySchema", () => {
 	});
 
 	test("accepts all valid sessionType values", () => {
-		const types = ["initializer", "planner", "generator", "evaluator"];
+		const types = ["initializer", "planner", "generator", "evaluator", "coding"];
 		for (const sessionType of types) {
 			const result = ProgressEntrySchema.safeParse(makeEntry({ sessionType }));
 			expect(result.success).toBe(true);
