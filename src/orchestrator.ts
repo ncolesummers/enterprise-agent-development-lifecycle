@@ -16,7 +16,7 @@ import {
 	type Span,
 } from "./otel/index.js";
 import type { AgentConfig } from "./schemas/config.js";
-import { runAgentSession } from "./sdk-wrapper.js";
+import { type AgentType, runAgentSession } from "./sdk-wrapper.js";
 import { readEvaluationReport, readFeatureList, readPlan } from "./state.js";
 
 // ---------------------------------------------------------------------------
@@ -265,7 +265,7 @@ async function runEvaluatorSession(
 
 export async function runSingleAgent(
 	config: AgentConfig,
-	agentType: "initializer" | "planner" | "generator" | "evaluator" | "coding",
+	agentType: AgentType,
 ): Promise<void> {
 	const otel = config.enableOtel
 		? createOtelContext(config)

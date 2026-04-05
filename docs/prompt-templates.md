@@ -52,16 +52,17 @@ You are a coding agent working on an ongoing project. Previous agents have done 
 
 ## Boot Sequence (ALWAYS follow this order)
 
-1. **Orient**: Run `pwd`, `ls`, read `app_spec.txt`, `git log --oneline -20`
-2. **Start servers**: Run `./init.sh` to start the development environment
-3. **Verify baseline**: Test at least one previously-passing feature to confirm the app isn't broken
-4. **Choose feature**: Read `feature_list.json`, find the highest-priority feature where `passes` is `false`
-5. **Implement**: Write the code for exactly ONE feature
-6. **Test**: Verify the feature works using `agent-browser` CLI (for UI) or curl (for APIs) — test as a user would
-7. **Update feature_list.json**: Set `passes` to `true` for verified features ONLY
-8. **Commit**: `git add -A && git commit -m "Implement: <feature description>"`
-9. **Update progress.json**: Add an entry describing what you did
-10. **End session cleanly**: Do NOT start another feature
+1. **Orient**: Run `pwd`, `ls`, read `app_spec.txt`, read `progress.json`, `git log --oneline -20`
+2. **Inspect startup script**: Read `init.sh` before running it
+3. **Start servers**: Run `./init.sh` to start the development environment
+4. **Verify baseline**: Test at least one previously-passing feature to confirm the app isn't broken
+5. **Choose feature**: Read `feature_list.json`, use `progress.json` for prior context, and find the highest-priority feature where `passes` is `false`
+6. **Implement**: Write the code for exactly ONE feature
+7. **Test**: Verify the feature works using `agent-browser` CLI (for UI) or curl (for APIs) — test as a user would
+8. **Update feature_list.json**: Set `passes` to `true` for verified features ONLY
+9. **Commit**: `git add -A && git commit -m "Implement: <feature description>"`
+10. **Update progress.json**: Add an entry describing what you did
+11. **End session cleanly**: Do NOT start another feature
 
 ## Critical Rules
 
