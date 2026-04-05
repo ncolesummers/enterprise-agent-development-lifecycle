@@ -107,6 +107,33 @@ describe("AgentConfigSchema", () => {
 		expect(result.success).toBe(true);
 	});
 
+	test("agentOverride accepts each valid agent type", () => {
+		for (const agent of ["initializer", "planner", "generator", "evaluator"]) {
+			const result = AgentConfigSchema.safeParse(
+				makeConfig({ agentOverride: agent }),
+			);
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data.agentOverride).toBe(agent);
+			}
+		}
+	});
+
+	test("agentOverride defaults to undefined when omitted", () => {
+		const result = AgentConfigSchema.safeParse(makeConfig());
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.data.agentOverride).toBeUndefined();
+		}
+	});
+
+	test("agentOverride rejects invalid agent types", () => {
+		const result = AgentConfigSchema.safeParse(
+			makeConfig({ agentOverride: "executor" }),
+		);
+		expect(result.success).toBe(false);
+	});
+
 	test("boolean flags accept both true and false", () => {
 		const trueConfig = AgentConfigSchema.safeParse(
 			makeConfig({
