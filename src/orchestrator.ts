@@ -1,9 +1,8 @@
-import { resolve } from "node:path";
 import { runCodingSession } from "./agents/coding.js";
+import { runInitializerSession } from "./agents/initializer.js";
 import {
 	getEvaluatorPrompt,
 	getGeneratorPrompt,
-	getInitializerPrompt,
 	getPlannerPrompt,
 } from "./agents/prompts.js";
 import { createAgentBrowserHooks } from "./hooks/agent-browser.js";
@@ -17,7 +16,12 @@ import {
 } from "./otel/index.js";
 import type { AgentConfig } from "./schemas/config.js";
 import { type AgentType, runAgentSession } from "./sdk-wrapper.js";
-import { readEvaluationReport, readFeatureList, readPlan } from "./state.js";
+import {
+	readAppSpec,
+	readEvaluationReport,
+	readFeatureList,
+	readPlan,
+} from "./state.js";
 
 // ---------------------------------------------------------------------------
 // State detection
@@ -96,60 +100,12 @@ export async function countPassingFeatures(
 // Agent sessions
 // ---------------------------------------------------------------------------
 
-async function runInitializerSession(
-	config: AgentConfig,
-	otel: OtelContext,
-	parentSpan: Span,
-): Promise<void> {
-	const prompt = await getInitializerPrompt();
-
-	console.log("\n--- Initializer Session ---\n");
-
-	await runAgentSession({
-		agentType: "initializer",
-		prompt,
-		model: config.model,
-		cwd: config.projectDir,
-		allowedTools: ["Read", "Write", "Bash", "Glob", "Grep"],
-		otel,
-		parentSpan,
-	});
-
-	// Validate that feature_list.json was written correctly
-	const features = await readFeatureList(config.projectDir);
-	if (features === null) {
-		throw new Error(
-			"Initializer did not produce a valid feature_list.json in the project directory.",
-		);
-	}
-}
-
 async function runPlannerSession(
 	config: AgentConfig,
 	otel: OtelContext,
 	parentSpan: Span,
 ): Promise<void> {
-	const appSpecPath = resolve(config.projectDir, "app_spec.txt");
-	const appSpecFile = Bun.file(appSpecPath);
-
-	if (!(await appSpecFile.exists())) {
-		throw new Error(
-			`Expected an application spec file at "${appSpecPath}".\n\n` +
-				`Create a text file named "app_spec.txt" in your project directory (${config.projectDir}) ` +
-				`describing the application you want to build, then rerun the orchestrator.`,
-		);
-	}
-
-	const appSpec = await appSpecFile.text();
-
-	if (!appSpec.trim()) {
-		throw new Error(
-			`The application spec file at "${appSpecPath}" is empty.\n\n` +
-				`Add a description of the application you want to build to "app_spec.txt", ` +
-				`then rerun the orchestrator.`,
-		);
-	}
-
+	const appSpec = await readAppSpec(config.projectDir);
 	const prompt = await getPlannerPrompt(appSpec);
 
 	console.log("\n--- Planner Session ---\n");

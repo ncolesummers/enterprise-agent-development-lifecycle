@@ -174,3 +174,32 @@ export async function writeSprintContract(
 		data,
 	);
 }
+
+// ---------------------------------------------------------------------------
+// App spec
+// ---------------------------------------------------------------------------
+
+export async function readAppSpec(projectDir: string): Promise<string> {
+	const appSpecPath = resolve(projectDir, "app_spec.txt");
+	const appSpecFile = Bun.file(appSpecPath);
+
+	if (!(await appSpecFile.exists())) {
+		throw new Error(
+			`Expected an application spec file at "${appSpecPath}".\n\n` +
+				`Create a text file named "app_spec.txt" in your project directory (${projectDir}) ` +
+				`describing the application you want to build, then rerun the orchestrator.`,
+		);
+	}
+
+	const appSpec = await appSpecFile.text();
+
+	if (!appSpec.trim()) {
+		throw new Error(
+			`The application spec file at "${appSpecPath}" is empty.\n\n` +
+				`Add a description of the application you want to build to "app_spec.txt", ` +
+				`then rerun the orchestrator.`,
+		);
+	}
+
+	return appSpec;
+}
