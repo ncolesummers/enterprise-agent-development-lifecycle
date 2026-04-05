@@ -27,3 +27,7 @@ export async function getGeneratorPrompt(): Promise<string> {
 export async function getEvaluatorPrompt(): Promise<string> {
 	return loadPrompt("evaluator_prompt.md");
 }
+
+export async function getCodingPrompt(): Promise<string> {
+	return loadPrompt("coding_prompt.md");
+}
