@@ -1,9 +1,9 @@
 import { resolve } from "node:path";
 import { runCodingSession } from "./agents/coding.js";
+import { runInitializerSession } from "./agents/initializer.js";
 import {
 	getEvaluatorPrompt,
 	getGeneratorPrompt,
-	getInitializerPrompt,
 	getPlannerPrompt,
 } from "./agents/prompts.js";
 import { createAgentBrowserHooks } from "./hooks/agent-browser.js";
@@ -95,34 +95,6 @@ export async function countPassingFeatures(
 // ---------------------------------------------------------------------------
 // Agent sessions
 // ---------------------------------------------------------------------------
-
-async function runInitializerSession(
-	config: AgentConfig,
-	otel: OtelContext,
-	parentSpan: Span,
-): Promise<void> {
-	const prompt = await getInitializerPrompt();
-
-	console.log("\n--- Initializer Session ---\n");
-
-	await runAgentSession({
-		agentType: "initializer",
-		prompt,
-		model: config.model,
-		cwd: config.projectDir,
-		allowedTools: ["Read", "Write", "Bash", "Glob", "Grep"],
-		otel,
-		parentSpan,
-	});
-
-	// Validate that feature_list.json was written correctly
-	const features = await readFeatureList(config.projectDir);
-	if (features === null) {
-		throw new Error(
-			"Initializer did not produce a valid feature_list.json in the project directory.",
-		);
-	}
-}
 
 async function runPlannerSession(
 	config: AgentConfig,
