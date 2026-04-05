@@ -15,10 +15,8 @@ import {
 	type Span,
 } from "./otel/index.js";
 import type { AgentConfig } from "./schemas/config.js";
-import { EvaluatorReportSchema } from "./schemas/evaluator.js";
-import { FeatureListSchema } from "./schemas/feature.js";
-import { PlanSchema } from "./schemas/plan.js";
 import { runAgentSession } from "./sdk-wrapper.js";
+import { readEvaluationReport, readFeatureList, readPlan } from "./state.js";
 
 // ---------------------------------------------------------------------------
 // State detection
@@ -34,34 +32,31 @@ export type OrchestratorState =
 export async function detectState(
 	config: AgentConfig,
 ): Promise<OrchestratorState> {
-	const featureListPath = resolve(config.projectDir, "feature_list.json");
-	const planPath = resolve(config.projectDir, "plan.json");
-	const evalReportPath = resolve(config.projectDir, "evaluation_report.json");
-
 	// No feature list → needs initialization
-	if (!(await Bun.file(featureListPath).exists())) {
+	const features = await readFeatureList(config.projectDir);
+	if (features === null) {
 		return "needs_initialization";
 	}
 
 	// No plan → needs planning
-	if (!(await Bun.file(planPath).exists())) {
+	if ((await readPlan(config.projectDir)) === null) {
 		return "needs_planning";
 	}
 
-	// Count passing features
-	const { passing, total } = await countPassingFeatures(config.projectDir);
+	// Count passing features (reuse already-loaded list)
+	const passing = features.filter((f) => f.passes).length;
+	const total = features.length;
+	const evalReport = await readEvaluationReport(config.projectDir);
+
 	if (passing === total && total > 0) {
 		// All features pass — but evaluator may still need to run
 		if (config.enableEvaluator) {
-			const evalExists = await Bun.file(evalReportPath).exists();
-			if (!evalExists) {
+			if (evalReport === null) {
 				return "needs_evaluation";
 			}
-			const raw = await Bun.file(evalReportPath).json();
-			const report = EvaluatorReportSchema.parse(raw);
 			if (
-				report.verdict === "pass" &&
-				report.overallScore >= config.passThreshold
+				evalReport.verdict === "pass" &&
+				evalReport.overallScore >= config.passThreshold
 			) {
 				return "complete";
 			}
@@ -72,12 +67,8 @@ export async function detectState(
 	}
 
 	// Check if evaluator gave failing feedback → generator should retry
-	if (await Bun.file(evalReportPath).exists()) {
-		const raw = await Bun.file(evalReportPath).json();
-		const report = EvaluatorReportSchema.parse(raw);
-		if (report.verdict === "fail") {
-			return "needs_generation";
-		}
+	if (evalReport !== null && evalReport.verdict === "fail") {
+		return "needs_generation";
 	}
 
 	return "needs_generation";
@@ -90,15 +81,12 @@ export async function detectState(
 export async function countPassingFeatures(
 	projectDir: string,
 ): Promise<{ passing: number; total: number }> {
-	const featureListPath = resolve(projectDir, "feature_list.json");
-	const file = Bun.file(featureListPath);
+	const features = await readFeatureList(projectDir);
 
-	if (!(await file.exists())) {
+	if (features === null) {
 		return { passing: 0, total: 0 };
 	}
 
-	const raw = await file.json();
-	const features = FeatureListSchema.parse(raw);
 	const passing = features.filter((f) => f.passes).length;
 	return { passing, total: features.length };
 }
@@ -127,10 +115,11 @@ async function runInitializerSession(
 	});
 
 	// Validate that feature_list.json was written correctly
-	const featureListPath = resolve(config.projectDir, "feature_list.json");
-	if (await Bun.file(featureListPath).exists()) {
-		const raw = await Bun.file(featureListPath).json();
-		FeatureListSchema.parse(raw);
+	const features = await readFeatureList(config.projectDir);
+	if (features === null) {
+		throw new Error(
+			"Initializer did not produce a valid feature_list.json in the project directory.",
+		);
 	}
 }
 
@@ -175,10 +164,11 @@ async function runPlannerSession(
 	});
 
 	// Validate the plan was written correctly
-	const planPath = resolve(config.projectDir, "plan.json");
-	if (await Bun.file(planPath).exists()) {
-		const raw = await Bun.file(planPath).json();
-		PlanSchema.parse(raw);
+	const plan = await readPlan(config.projectDir);
+	if (plan === null) {
+		throw new Error(
+			`Planner session completed without producing a valid "plan.json" in "${config.projectDir}".`,
+		);
 	}
 }
 
@@ -253,12 +243,10 @@ async function runEvaluatorSession(
 	});
 
 	// Read and validate the evaluation report
-	const evalReportPath = resolve(config.projectDir, "evaluation_report.json");
+	const report = await readEvaluationReport(config.projectDir);
 	let passed = false;
 
-	if (await Bun.file(evalReportPath).exists()) {
-		const raw = await Bun.file(evalReportPath).json();
-		const report = EvaluatorReportSchema.parse(raw);
+	if (report !== null) {
 		passed =
 			report.verdict === "pass" && report.overallScore >= config.passThreshold;
 
