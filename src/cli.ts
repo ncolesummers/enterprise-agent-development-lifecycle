@@ -24,7 +24,7 @@ const program = new Command()
 	)
 	.option(
 		"-a, --agent <type>",
-		"Run a single agent instead of the full orchestrator loop",
+		"Run a single agent (initializer, planner, generator, evaluator, coding)",
 	)
 	.option("-m, --model <model>", "Generator model", "claude-sonnet-4-6")
 	.option("--planner-model <model>", "Planner model", "claude-opus-4-6")

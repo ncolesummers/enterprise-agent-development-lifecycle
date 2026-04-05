@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import { runCodingSession } from "./agents/coding.js";
 import {
 	getEvaluatorPrompt,
 	getGeneratorPrompt,
@@ -15,7 +16,7 @@ import {
 	type Span,
 } from "./otel/index.js";
 import type { AgentConfig } from "./schemas/config.js";
-import { runAgentSession } from "./sdk-wrapper.js";
+import { type AgentType, runAgentSession } from "./sdk-wrapper.js";
 import { readEvaluationReport, readFeatureList, readPlan } from "./state.js";
 
 // ---------------------------------------------------------------------------
@@ -264,7 +265,7 @@ async function runEvaluatorSession(
 
 export async function runSingleAgent(
 	config: AgentConfig,
-	agentType: "initializer" | "planner" | "generator" | "evaluator",
+	agentType: AgentType,
 ): Promise<void> {
 	const otel = config.enableOtel
 		? createOtelContext(config)
@@ -288,6 +289,9 @@ export async function runSingleAgent(
 				break;
 			case "evaluator":
 				await runEvaluatorSession(config, otel, rootSpan);
+				break;
+			case "coding":
+				await runCodingSession(config, otel, rootSpan, 1);
 				break;
 		}
 	} finally {

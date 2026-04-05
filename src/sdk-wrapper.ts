@@ -15,7 +15,12 @@ import { type OtelContext, type Span, SpanStatusCode } from "./otel/index.js";
 // Types
 // ---------------------------------------------------------------------------
 
-export type AgentType = "initializer" | "planner" | "generator" | "evaluator";
+export type AgentType =
+	| "initializer"
+	| "planner"
+	| "generator"
+	| "evaluator"
+	| "coding";
 
 export interface MessageHandlers {
 	onAssistant?: (message: SDKAssistantMessage) => void;

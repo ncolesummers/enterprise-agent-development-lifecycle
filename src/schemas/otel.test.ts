@@ -49,12 +49,13 @@ describe("OtelLogEntrySchema", () => {
 		expect(result.success).toBe(false);
 	});
 
-	test("accepts all four agentType values", () => {
+	test("accepts all five agentType values", () => {
 		for (const agentType of [
 			"initializer",
 			"planner",
 			"generator",
 			"evaluator",
+			"coding",
 		]) {
 			const result = OtelLogEntrySchema.safeParse(
 				makeOtelLogEntry({ agentType }),
