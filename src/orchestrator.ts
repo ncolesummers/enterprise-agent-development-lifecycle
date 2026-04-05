@@ -33,7 +33,8 @@ export async function detectState(
 	config: AgentConfig,
 ): Promise<OrchestratorState> {
 	// No feature list → needs initialization
-	if ((await readFeatureList(config.projectDir)) === null) {
+	const features = await readFeatureList(config.projectDir);
+	if (features === null) {
 		return "needs_initialization";
 	}
 
@@ -42,8 +43,9 @@ export async function detectState(
 		return "needs_planning";
 	}
 
-	// Count passing features
-	const { passing, total } = await countPassingFeatures(config.projectDir);
+	// Count passing features (reuse already-loaded list)
+	const passing = features.filter((f) => f.passes).length;
+	const total = features.length;
 	const evalReport = await readEvaluationReport(config.projectDir);
 
 	if (passing === total && total > 0) {
@@ -113,7 +115,12 @@ async function runInitializerSession(
 	});
 
 	// Validate that feature_list.json was written correctly
-	await readFeatureList(config.projectDir);
+	const features = await readFeatureList(config.projectDir);
+	if (features === null) {
+		throw new Error(
+			"Initializer did not produce a valid feature_list.json in the project directory.",
+		);
+	}
 }
 
 async function runPlannerSession(
@@ -157,7 +164,12 @@ async function runPlannerSession(
 	});
 
 	// Validate the plan was written correctly
-	await readPlan(config.projectDir);
+	const plan = await readPlan(config.projectDir);
+	if (plan === null) {
+		throw new Error(
+			`Planner session completed without producing a valid "plan.json" in "${config.projectDir}".`,
+		);
+	}
 }
 
 async function runGeneratorSession(
