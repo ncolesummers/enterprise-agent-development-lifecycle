@@ -54,17 +54,19 @@ mock.module("../state.js", () => ({
 let mockAppSpecExists = true;
 let mockAppSpecText = "Build a Hello World server";
 
-const originalBunFile = Bun.file.bind(Bun);
-// @ts-expect-error — override for testing
-Bun.file = (path: string, ...args: unknown[]) => {
-	if (typeof path === "string" && path.endsWith("app_spec.txt")) {
-		return {
-			exists: async () => mockAppSpecExists,
-			text: async () => mockAppSpecText,
-		};
-	}
-	return originalBunFile(path, ...args);
-};
+mock.module("../state.js", () => ({
+	readAppSpec: async () => {
+		if (!mockAppSpecExists) {
+			throw new Error('Expected an application spec file at "app_spec.txt".');
+		}
+		if (!mockAppSpecText.trim()) {
+			throw new Error('The application spec file at "app_spec.txt" is empty.');
+		}
+		return mockAppSpecText;
+	},
+	readFeatureList: async () => mockFeatureList,
+	readProgress: async () => mockProgress,
+}));
 
 // Import after mocking
 const { runInitializerSession } = await import("./initializer.js");
@@ -261,13 +263,16 @@ describe("runInitializerSession", () => {
 		);
 	});
 
-	test("does not include hooks (no biome/browser)", async () => {
+	test("includes bash security hook in PreToolUse", async () => {
 		const config = makeConfig();
 		const otel = makeOtel();
 		const span = makeSpan();
 
 		await runInitializerSession(config, otel, span);
 
-		expect(capturedOptions?.hooks).toBeUndefined();
+		const preToolUse = capturedOptions?.hooks?.PreToolUse;
+		expect(preToolUse).toBeDefined();
+		expect(preToolUse?.length).toBe(1);
+		expect(preToolUse?.[0].matcher).toBe("Bash");
 	});
 });

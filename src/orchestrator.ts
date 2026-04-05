@@ -1,4 +1,3 @@
-import { resolve } from "node:path";
 import { runCodingSession } from "./agents/coding.js";
 import { runInitializerSession } from "./agents/initializer.js";
 import {
@@ -17,7 +16,12 @@ import {
 } from "./otel/index.js";
 import type { AgentConfig } from "./schemas/config.js";
 import { type AgentType, runAgentSession } from "./sdk-wrapper.js";
-import { readEvaluationReport, readFeatureList, readPlan } from "./state.js";
+import {
+	readAppSpec,
+	readEvaluationReport,
+	readFeatureList,
+	readPlan,
+} from "./state.js";
 
 // ---------------------------------------------------------------------------
 // State detection
@@ -101,27 +105,7 @@ async function runPlannerSession(
 	otel: OtelContext,
 	parentSpan: Span,
 ): Promise<void> {
-	const appSpecPath = resolve(config.projectDir, "app_spec.txt");
-	const appSpecFile = Bun.file(appSpecPath);
-
-	if (!(await appSpecFile.exists())) {
-		throw new Error(
-			`Expected an application spec file at "${appSpecPath}".\n\n` +
-				`Create a text file named "app_spec.txt" in your project directory (${config.projectDir}) ` +
-				`describing the application you want to build, then rerun the orchestrator.`,
-		);
-	}
-
-	const appSpec = await appSpecFile.text();
-
-	if (!appSpec.trim()) {
-		throw new Error(
-			`The application spec file at "${appSpecPath}" is empty.\n\n` +
-				`Add a description of the application you want to build to "app_spec.txt", ` +
-				`then rerun the orchestrator.`,
-		);
-	}
-
+	const appSpec = await readAppSpec(config.projectDir);
 	const prompt = await getPlannerPrompt(appSpec);
 
 	console.log("\n--- Planner Session ---\n");

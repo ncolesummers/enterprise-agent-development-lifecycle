@@ -1,8 +1,8 @@
-import { resolve } from "node:path";
+import { bashSecurityHook } from "../hooks/security.js";
 import type { OtelContext, Span } from "../otel/index.js";
 import type { AgentConfig } from "../schemas/config.js";
 import { runAgentSession } from "../sdk-wrapper.js";
-import { readFeatureList, readProgress } from "../state.js";
+import { readAppSpec, readFeatureList, readProgress } from "../state.js";
 import { getInitializerPrompt } from "./prompts.js";
 
 export async function runInitializerSession(
@@ -11,26 +11,7 @@ export async function runInitializerSession(
 	parentSpan: Span,
 ): Promise<void> {
 	// Pre-validate: app_spec.txt must exist and be non-empty
-	const appSpecPath = resolve(config.projectDir, "app_spec.txt");
-	const appSpecFile = Bun.file(appSpecPath);
-
-	if (!(await appSpecFile.exists())) {
-		throw new Error(
-			`Expected an application spec file at "${appSpecPath}".\n\n` +
-				`Create a text file named "app_spec.txt" in your project directory (${config.projectDir}) ` +
-				`describing the application you want to build, then rerun the orchestrator.`,
-		);
-	}
-
-	const appSpec = await appSpecFile.text();
-
-	if (!appSpec.trim()) {
-		throw new Error(
-			`The application spec file at "${appSpecPath}" is empty.\n\n` +
-				`Add a description of the application you want to build to "app_spec.txt", ` +
-				`then rerun the orchestrator.`,
-		);
-	}
+	await readAppSpec(config.projectDir);
 
 	const prompt = await getInitializerPrompt();
 
@@ -42,6 +23,9 @@ export async function runInitializerSession(
 		model: config.model,
 		cwd: config.projectDir,
 		allowedTools: ["Read", "Write", "Bash", "Glob", "Grep"],
+		hooks: {
+			PreToolUse: [{ matcher: "Bash", hooks: [bashSecurityHook] }],
+		},
 		env: config.enableOtel
 			? {
 					CLAUDE_CODE_ENABLE_TELEMETRY: "1",
