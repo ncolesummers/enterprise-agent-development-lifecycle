@@ -92,9 +92,9 @@ The architecture encodes countermeasures for both: a structured feature list (JS
 // src/cli.ts
 import { resolve } from "node:path";
 import { Command } from "commander";
-import { loadConfigFile, mergeConfigs, formatValidationErrors } from "./config-loader";
-import { runOrchestrator, runSingleAgent } from "./orchestrator";
-import { AgentConfigSchema } from "./schemas/config";
+import { loadConfigFile, mergeConfigs, formatValidationErrors } from "./config-loader.js";
+import { runOrchestrator, runSingleAgent } from "./orchestrator.js";
+import { AgentConfigSchema } from "./schemas/config.js";
 
 const program = new Command()
   .name("adlc")

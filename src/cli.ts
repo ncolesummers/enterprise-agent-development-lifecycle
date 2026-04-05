@@ -92,13 +92,13 @@ export async function buildConfig(prog: Command): Promise<
 		model: opts.model,
 		plannerModel: opts.plannerModel,
 		evaluatorModel: opts.evaluatorModel,
-		maxIterations: Number.parseInt(opts.maxIterations, 10),
+		maxIterations: Number(opts.maxIterations),
 		enableEvaluator: opts.evaluator,
 		enableBiomeHooks: opts.biome,
 		enableOtel: opts.otel,
 		otelEndpoint: opts.otelEndpoint,
-		maxEvaluatorRetries: Number.parseInt(opts.maxEvaluatorRetries, 10),
-		passThreshold: Number.parseFloat(opts.passThreshold),
+		maxEvaluatorRetries: Number(opts.maxEvaluatorRetries),
+		passThreshold: Number(opts.passThreshold),
 	};
 
 	// Build source map: Commander option name → "cli" | "default" | etc.
@@ -132,10 +132,10 @@ export async function buildConfig(prog: Command): Promise<
 }
 
 // ---------------------------------------------------------------------------
-// Main execution (only when run directly, not when imported by tests)
+// Main execution
 // ---------------------------------------------------------------------------
 
-if (import.meta.main) {
+export async function main(): Promise<void> {
 	program.parse();
 
 	const result = await buildConfig(program);
@@ -152,4 +152,8 @@ if (import.meta.main) {
 	} else {
 		await runOrchestrator(config);
 	}
+}
+
+if (import.meta.main) {
+	await main();
 }

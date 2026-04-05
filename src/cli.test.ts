@@ -209,6 +209,33 @@ describe("buildConfig", () => {
 		expect(result.success).toBe(true);
 	});
 
+	test("non-numeric --max-iterations is rejected", async () => {
+		const prog = createProgram(["--max-iterations", "5abc"]);
+		const result = await buildConfig(prog);
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error).toContain("maxIterations");
+		}
+	});
+
+	test("non-integer --max-iterations is rejected", async () => {
+		const prog = createProgram(["--max-iterations", "2.5"]);
+		const result = await buildConfig(prog);
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error).toContain("maxIterations");
+		}
+	});
+
+	test("non-numeric --pass-threshold is rejected", async () => {
+		const prog = createProgram(["--pass-threshold", "abc"]);
+		const result = await buildConfig(prog);
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error).toContain("passThreshold");
+		}
+	});
+
 	test("all defaults applied when no args and no config file", async () => {
 		const prog = createProgram([]);
 		const result = await buildConfig(prog);
