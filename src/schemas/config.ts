@@ -21,7 +21,7 @@ export const AgentConfigSchema = z.object({
 	enableOtel: z.boolean().default(true),
 	otelEndpoint: z.string().default("http://localhost:4318"),
 	agentOverride: z
-		.enum(["initializer", "planner", "generator", "evaluator"])
+		.enum(["initializer", "planner", "generator", "evaluator", "coding"])
 		.optional()
 		.describe(
 			"Override: run only this agent type instead of the full orchestrator loop",

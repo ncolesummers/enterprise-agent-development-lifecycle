@@ -23,7 +23,7 @@ export const OtelLogEntrySchema = z.object({
 		"error",
 		"cost_update",
 	]),
-	agentType: z.enum(["initializer", "planner", "generator", "evaluator"]),
+	agentType: z.enum(["initializer", "planner", "generator", "evaluator", "coding"]),
 	sessionId: z.string(),
 	traceId: z.string().optional(),
 	spanId: z.string().optional(),
