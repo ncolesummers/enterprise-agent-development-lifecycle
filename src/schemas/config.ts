@@ -20,6 +20,12 @@ export const AgentConfigSchema = z.object({
 	enableBiomeHooks: z.boolean().default(true),
 	enableOtel: z.boolean().default(true),
 	otelEndpoint: z.string().default("http://localhost:4318"),
+	agentOverride: z
+		.enum(["initializer", "planner", "generator", "evaluator"])
+		.optional()
+		.describe(
+			"Override: run only this agent type instead of the full orchestrator loop",
+		),
 });
 
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;

@@ -82,42 +82,42 @@ The architecture encodes countermeasures for both: a structured feature list (JS
 
 ### 2.2 File-by-File Translation
 
-#### `autonomous_agent_demo.py` → `src/main.ts`
+#### `autonomous_agent_demo.py` → `src/cli.ts`
 
-**What it does**: Entry point. Parses CLI args, validates environment, orchestrates the session loop.
+**What it does**: Entry point. Parses CLI args, loads optional config file, validates configuration, orchestrates the session loop.
 
 **TypeScript equivalent**:
 
 ```typescript
-// src/main.ts
-import { parseArgs } from "util";
-import { runAutonomousAgent } from "./agent";
-import { AgentConfig, AgentConfigSchema } from "./schemas";
+// src/cli.ts
+import { resolve } from "node:path";
+import { Command } from "commander";
+import { loadConfigFile, mergeConfigs, formatValidationErrors } from "./config-loader.js";
+import { runOrchestrator, runSingleAgent } from "./orchestrator.js";
+import { AgentConfigSchema } from "./schemas/config.js";
 
-const { values } = parseArgs({
-  args: Bun.argv.slice(2),
-  options: {
-    "project-dir": { type: "string", default: "./generations/my_project" },
-    "max-iterations": { type: "string", default: "0" },
-    model: { type: "string", default: "claude-sonnet-4-6" },
-  },
-});
+const program = new Command()
+  .name("adlc")
+  .description("Agent Development Lifecycle — orchestrate multi-agent autonomous coding")
+  .option("-d, --project-dir <path>", "Path to the project directory", process.cwd())
+  .option("-a, --agent <type>", "Run a single agent instead of the full orchestrator loop")
+  .option("-m, --model <model>", "Generator model", "claude-sonnet-4-6")
+  .option("--planner-model <model>", "Planner model", "claude-opus-4-6")
+  .option("--evaluator-model <model>", "Evaluator model", "claude-opus-4-6")
+  .option("--max-iterations <n>", "Maximum orchestrator iterations (0 = unlimited)", "0")
+  .option("--no-evaluator", "Disable the evaluator agent")
+  .option("--no-biome", "Disable Biome lint hooks")
+  .option("--no-otel", "Disable OpenTelemetry instrumentation")
+  .option("--otel-endpoint <url>", "OTel collector endpoint", "http://localhost:4318")
+  .option("--max-evaluator-retries <n>", "Max evaluator retry attempts", "3")
+  .option("--pass-threshold <n>", "Evaluator pass/fail threshold (0-10)", "6");
 
-const config = AgentConfigSchema.parse({
-  projectDir: values["project-dir"],
-  maxIterations: parseInt(values["max-iterations"] ?? "0", 10),
-  model: values.model,
-});
-
-if (!process.env.ANTHROPIC_API_KEY) {
-  console.error("ANTHROPIC_API_KEY environment variable is required");
-  process.exit(1);
-}
-
-await runAutonomousAgent(config);
+program.parse();
+// ... buildConfig merges CLI args > agent-config.json > schema defaults
+// ... dispatches to runOrchestrator or runSingleAgent
 ```
 
-**Bun-specific simplifications**: `Bun.argv` for arg access, no `if __name__ == "__main__"` boilerplate, top-level `await`.
+**Key features**: Commander-based CLI with `--agent` override for single-agent runs, optional `agent-config.json` config file support, and user-friendly Zod validation error messages.
 
 #### `agent.py` → `src/agent.ts`
 
@@ -439,8 +439,8 @@ agent-harness/
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "start": "bun run src/main.ts",
-    "dev": "bun --watch run src/main.ts",
+    "start": "bun run src/cli.ts",
+    "dev": "bun --watch run src/cli.ts",
     "test": "bun test",
     "check": "biome check .",
     "format": "biome check --write ."

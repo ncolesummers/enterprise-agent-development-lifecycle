@@ -259,6 +259,44 @@ async function runEvaluatorSession(
 }
 
 // ---------------------------------------------------------------------------
+// Single-agent override
+// ---------------------------------------------------------------------------
+
+export async function runSingleAgent(
+	config: AgentConfig,
+	agentType: "initializer" | "planner" | "generator" | "evaluator",
+): Promise<void> {
+	const otel = config.enableOtel
+		? createOtelContext(config)
+		: createNoopOtelContext();
+	const rootSpan = otel.startSpan("single_agent_run");
+	rootSpan.setAttribute("agent.type", agentType);
+
+	console.log(`\nRunning single agent: ${agentType}`);
+	console.log(`Project: ${config.projectDir}`);
+
+	try {
+		switch (agentType) {
+			case "initializer":
+				await runInitializerSession(config, otel, rootSpan);
+				break;
+			case "planner":
+				await runPlannerSession(config, otel, rootSpan);
+				break;
+			case "generator":
+				await runGeneratorSession(config, otel, rootSpan, 1);
+				break;
+			case "evaluator":
+				await runEvaluatorSession(config, otel, rootSpan);
+				break;
+		}
+	} finally {
+		rootSpan.end();
+		await otel.shutdown();
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Main orchestrator loop
 // ---------------------------------------------------------------------------
 
