@@ -4,7 +4,8 @@ import type {
 	PreToolUseHookInput,
 } from "@anthropic-ai/claude-agent-sdk";
 
-const DANGEROUS_PATTERNS: string[] = [
+/** Substring patterns — matched via `includes()` on the lowercased command. */
+const DANGEROUS_SUBSTRINGS: string[] = [
 	// Original patterns
 	"rm -rf /",
 	"rm -rf --no-preserve-root",
@@ -23,29 +24,40 @@ const DANGEROUS_PATTERNS: string[] = [
 	"chown -r",
 	"> /dev/sda",
 	"> /dev/nvme",
-	// Network / exfiltration
-	"| sh",
-	"| bash",
+	// Network / exfiltration (substring-safe)
 	"nc -l",
-	"ncat",
-	"socat",
+	"socat tcp-listen",
+	"socat exec:",
+	"socat system:",
 	// Privilege escalation
-	"sudo",
-	"su -",
-	"doas",
 	"chmod u+s",
 	"chmod +s",
 	// Process / system manipulation
 	"kill -9 1",
-	"killall",
-	"pkill",
-	"reboot",
 	"systemctl stop",
 	"service stop",
 	// Crypto mining / malware
 	"xmrig",
 	"minerd",
 	"cryptonight",
+];
+
+/**
+ * Regex patterns — for terms that cause false positives with substring matching.
+ * Tested via `.test()` on the lowercased command.
+ */
+const DANGEROUS_REGEXES: RegExp[] = [
+	// Pipe to shell — must be "sh" or "bash" as a whole word after pipe
+	/\|\s*sh\b/,
+	/\|\s*bash\b/,
+	// Privilege escalation — whole-word to avoid matching "sudoku", "susan", etc.
+	/\bsudo\b/,
+	/\bsu\s+-/,
+	/\bdoas\b/,
+	// Process manipulation — whole-word to avoid false positives
+	/\bkillall\b/,
+	/\bpkill\b/,
+	/\breboot\b/,
 ];
 
 /**
@@ -66,8 +78,14 @@ export const bashSecurityHook: HookCallback = async (
 
 	const normalized = command.toLowerCase();
 
-	for (const pattern of DANGEROUS_PATTERNS) {
+	for (const pattern of DANGEROUS_SUBSTRINGS) {
 		if (normalized.includes(pattern)) {
+			return { continue: false };
+		}
+	}
+
+	for (const regex of DANGEROUS_REGEXES) {
+		if (regex.test(normalized)) {
 			return { continue: false };
 		}
 	}
@@ -95,7 +113,7 @@ export function createFileSystemBoundaryHook(projectDir: string): HookCallback {
 			const filePath =
 				typeof toolInput.file_path === "string" ? toolInput.file_path : "";
 			if (filePath) {
-				const resolved = resolve(filePath);
+				const resolved = resolve(resolvedProjectDir, filePath);
 				if (
 					!resolved.startsWith(`${resolvedProjectDir}/`) &&
 					resolved !== resolvedProjectDir

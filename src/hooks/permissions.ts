@@ -21,5 +21,5 @@ export const AGENT_TOOL_PERMISSIONS: Record<AgentType, string[]> = {
  * Returns the allowed tool list for the given agent type.
  */
 export function getAllowedTools(agentType: AgentType): string[] {
-	return AGENT_TOOL_PERMISSIONS[agentType];
+	return [...AGENT_TOOL_PERMISSIONS[agentType]];
 }

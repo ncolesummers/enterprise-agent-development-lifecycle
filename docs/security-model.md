@@ -37,7 +37,7 @@ Restricts file-system writes to within `projectDir`:
 | evaluator   | ✓    |       |      | ✓    | ✓    | ✓    | Read-only + Bash for test runner       |
 | coding      | ✓    | ✓     | ✓    | ✓    | ✓    | ✓    | Same as generator                      |
 
-Call `getAllowedTools(agentType)` to retrieve the tool list and pass it to `AgentSessionOptions.allowedTools`.
+Call `getAllowedTools(agentType)` to retrieve the tool list and pass it to `AgentSessionOptions.allowedTools`. Note: this helper is available but not yet wired into agent session runners — individual agents currently hardcode their `allowedTools` arrays. Future PRs should migrate agents to use this centralized helper.
 
 ## Tier 1 — OS-Level Sandbox (informational — not yet implemented)
 

