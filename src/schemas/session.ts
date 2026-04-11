@@ -14,6 +14,7 @@ export const SessionStateSchema = z.object({
 	agentType: z.enum([
 		"initializer",
 		"planner",
+		"sdet",
 		"generator",
 		"evaluator",
 		"coding",

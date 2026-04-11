@@ -86,6 +86,7 @@ describe("SessionStateSchema", () => {
 		const types = [
 			"initializer",
 			"planner",
+			"sdet",
 			"generator",
 			"evaluator",
 			"coding",
@@ -94,6 +95,13 @@ describe("SessionStateSchema", () => {
 			const result = SessionStateSchema.safeParse(makeSession({ agentType }));
 			expect(result.success).toBe(true);
 		}
+	});
+
+	test("accepts sdet as agentType", () => {
+		const result = SessionStateSchema.safeParse(
+			makeSession({ agentType: "sdet" }),
+		);
+		expect(result.success).toBe(true);
 	});
 
 	test("rejects invalid agentType", () => {

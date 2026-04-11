@@ -6,6 +6,7 @@ export const ProgressEntrySchema = z.object({
 	sessionType: z.enum([
 		"initializer",
 		"planner",
+		"sdet",
 		"generator",
 		"evaluator",
 		"coding",

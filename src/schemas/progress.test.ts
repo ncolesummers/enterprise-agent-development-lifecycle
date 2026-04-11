@@ -33,6 +33,7 @@ describe("ProgressEntrySchema", () => {
 		const types = [
 			"initializer",
 			"planner",
+			"sdet",
 			"generator",
 			"evaluator",
 			"coding",
@@ -41,6 +42,13 @@ describe("ProgressEntrySchema", () => {
 			const result = ProgressEntrySchema.safeParse(makeEntry({ sessionType }));
 			expect(result.success).toBe(true);
 		}
+	});
+
+	test("accepts sdet as sessionType", () => {
+		const result = ProgressEntrySchema.safeParse(
+			makeEntry({ sessionType: "sdet" }),
+		);
+		expect(result.success).toBe(true);
 	});
 
 	test("rejects invalid sessionType", () => {
