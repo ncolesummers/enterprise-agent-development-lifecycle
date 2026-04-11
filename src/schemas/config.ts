@@ -20,8 +20,11 @@ export const AgentConfigSchema = z.object({
 	enableBiomeHooks: z.boolean().default(true),
 	enableOtel: z.boolean().default(true),
 	otelEndpoint: z.string().default("http://localhost:4318"),
+	sdetModel: z.string().default("claude-sonnet-4-6"),
+	enableSdet: z.boolean().default(true),
+	enableTestHooks: z.boolean().default(true),
 	agentOverride: z
-		.enum(["initializer", "planner", "generator", "evaluator", "coding"])
+		.enum(["initializer", "planner", "sdet", "generator", "evaluator", "coding"])
 		.optional()
 		.describe(
 			"Override: run only this agent type instead of the full orchestrator loop",
