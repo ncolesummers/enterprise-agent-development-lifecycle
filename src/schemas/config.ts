@@ -24,7 +24,14 @@ export const AgentConfigSchema = z.object({
 	enableSdet: z.boolean().default(true),
 	enableTestHooks: z.boolean().default(true),
 	agentOverride: z
-		.enum(["initializer", "planner", "sdet", "generator", "evaluator", "coding"])
+		.enum([
+			"initializer",
+			"planner",
+			"sdet",
+			"generator",
+			"evaluator",
+			"coding",
+		])
 		.optional()
 		.describe(
 			"Override: run only this agent type instead of the full orchestrator loop",

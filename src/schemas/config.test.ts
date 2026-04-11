@@ -28,6 +28,9 @@ describe("AgentConfigSchema", () => {
 			expect(result.data.enableBiomeHooks).toBe(true);
 			expect(result.data.enableOtel).toBe(true);
 			expect(result.data.otelEndpoint).toBe("http://localhost:4318");
+			expect(result.data.sdetModel).toBe("claude-sonnet-4-6");
+			expect(result.data.enableSdet).toBe(true);
+			expect(result.data.enableTestHooks).toBe(true);
 		}
 	});
 
@@ -111,6 +114,7 @@ describe("AgentConfigSchema", () => {
 		for (const agent of [
 			"initializer",
 			"planner",
+			"sdet",
 			"generator",
 			"evaluator",
 			"coding",
@@ -122,6 +126,40 @@ describe("AgentConfigSchema", () => {
 			if (result.success) {
 				expect(result.data.agentOverride).toBe(agent);
 			}
+		}
+	});
+
+	test("sdetModel defaults to claude-sonnet-4-6", () => {
+		const result = AgentConfigSchema.safeParse(makeConfig());
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.data.sdetModel).toBe("claude-sonnet-4-6");
+		}
+	});
+
+	test("enableSdet defaults to true", () => {
+		const result = AgentConfigSchema.safeParse(makeConfig());
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.data.enableSdet).toBe(true);
+		}
+	});
+
+	test("enableTestHooks defaults to true", () => {
+		const result = AgentConfigSchema.safeParse(makeConfig());
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.data.enableTestHooks).toBe(true);
+		}
+	});
+
+	test("agentOverride accepts sdet", () => {
+		const result = AgentConfigSchema.safeParse(
+			makeConfig({ agentOverride: "sdet" }),
+		);
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.data.agentOverride).toBe("sdet");
 		}
 	});
 

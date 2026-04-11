@@ -35,7 +35,7 @@ describe("OtelLogEntrySchema", () => {
 		expect(result.success).toBe(false);
 	});
 
-	test("accepts all 19 event values", () => {
+	test("accepts all 22 event values", () => {
 		for (const event of ALL_EVENTS) {
 			const result = OtelLogEntrySchema.safeParse(makeOtelLogEntry({ event }));
 			expect(result.success).toBe(true);
@@ -49,10 +49,11 @@ describe("OtelLogEntrySchema", () => {
 		expect(result.success).toBe(false);
 	});
 
-	test("accepts all five agentType values", () => {
+	test("accepts all six agentType values", () => {
 		for (const agentType of [
 			"initializer",
 			"planner",
+			"sdet",
 			"generator",
 			"evaluator",
 			"coding",
@@ -60,6 +61,13 @@ describe("OtelLogEntrySchema", () => {
 			const result = OtelLogEntrySchema.safeParse(
 				makeOtelLogEntry({ agentType }),
 			);
+			expect(result.success).toBe(true);
+		}
+	});
+
+	test("accepts test event values", () => {
+		for (const event of ["test_run", "test_pass", "test_fail"]) {
+			const result = OtelLogEntrySchema.safeParse(makeOtelLogEntry({ event }));
 			expect(result.success).toBe(true);
 		}
 	});
