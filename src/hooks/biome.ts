@@ -3,6 +3,7 @@ import type {
 	HookCallbackMatcher,
 	PostToolUseHookInput,
 	PreToolUseHookInput,
+	StopHookInput,
 } from "@anthropic-ai/claude-agent-sdk";
 import type { OtelContext } from "../otel/index.js";
 import type { BiomeDiagnostic } from "../schemas/biome.js";
@@ -220,6 +221,36 @@ export function createBiomeCommitGateHook(cwd: string): HookCallback {
 }
 
 // ---------------------------------------------------------------------------
+// Issue #17: Stop hook — session-end quality gate
+// ---------------------------------------------------------------------------
+
+export function createBiomeSessionGateHook(cwd: string): HookCallback {
+	return async (input, _toolUseId, _options) => {
+		const hookInput = input as StopHookInput;
+
+		// Avoid infinite loop: if stop_hook_active is already true the SDK is
+		// re-invoking this hook because a prior stop was blocked — pass through.
+		if (hookInput.stop_hook_active) {
+			return { continue: true };
+		}
+
+		const diagnostics = await runBiomeCheckAll(cwd);
+		const errors = diagnostics.filter((d) => d.severity === "error");
+
+		if (errors.length === 0) {
+			return { continue: true };
+		}
+
+		const errorFiles = new Set(errors.map((d) => d.file));
+
+		return {
+			continue: false,
+			stopReason: `Biome errors remain. Fix ${errors.length} error(s) in ${errorFiles.size} file(s) before ending session.\n${formatDiagnostics(errors)}`,
+		};
+	};
+}
+
+// ---------------------------------------------------------------------------
 // Factory
 // ---------------------------------------------------------------------------
 
@@ -239,6 +270,7 @@ export function createBiomeHooks(
 	const cwd = config.projectDir;
 	const postToolUseHook = createBiomePostToolUseHook(cwd);
 	const commitGateHook = createBiomeCommitGateHook(cwd);
+	const sessionGateHook = createBiomeSessionGateHook(cwd);
 
 	return {
 		preToolUse: [{ matcher: "Bash", hooks: [commitGateHook] }],
@@ -246,7 +278,7 @@ export function createBiomeHooks(
 			{ matcher: "Write", hooks: [postToolUseHook] },
 			{ matcher: "Edit", hooks: [postToolUseHook] },
 		],
-		stop: [],
+		stop: [{ hooks: [sessionGateHook] }],
 		preCompact: [],
 	};
 }
