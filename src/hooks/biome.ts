@@ -2,6 +2,7 @@ import type {
 	HookCallback,
 	HookCallbackMatcher,
 	PostToolUseHookInput,
+	PreToolUseHookInput,
 } from "@anthropic-ai/claude-agent-sdk";
 import type { OtelContext } from "../otel/index.js";
 import type { BiomeDiagnostic } from "../schemas/biome.js";
@@ -185,6 +186,40 @@ export function createBiomePostToolUseHook(cwd: string): HookCallback {
 }
 
 // ---------------------------------------------------------------------------
+// Issue #16: PreToolUse hook — git commit gate
+// ---------------------------------------------------------------------------
+
+export function createBiomeCommitGateHook(cwd: string): HookCallback {
+	return async (input, _toolUseId, _options) => {
+		const hookInput = input as PreToolUseHookInput;
+
+		const toolInput = hookInput.tool_input as Record<string, unknown> | null;
+		const command =
+			toolInput && typeof toolInput.command === "string"
+				? toolInput.command
+				: "";
+
+		if (!command.includes("git commit")) {
+			return { continue: true };
+		}
+
+		const diagnostics = await runBiomeCheckAll(cwd);
+		const errors = diagnostics.filter((d) => d.severity === "error");
+
+		if (errors.length === 0) {
+			return { continue: true };
+		}
+
+		const errorFiles = new Set(errors.map((d) => d.file));
+
+		return {
+			continue: false,
+			reason: `Biome check failed. Fix ${errors.length} error(s) in ${errorFiles.size} file(s) before committing.\n${formatDiagnostics(errors)}`,
+		};
+	};
+}
+
+// ---------------------------------------------------------------------------
 // Factory
 // ---------------------------------------------------------------------------
 
@@ -203,9 +238,10 @@ export function createBiomeHooks(
 
 	const cwd = config.projectDir;
 	const postToolUseHook = createBiomePostToolUseHook(cwd);
+	const commitGateHook = createBiomeCommitGateHook(cwd);
 
 	return {
-		preToolUse: [],
+		preToolUse: [{ matcher: "Bash", hooks: [commitGateHook] }],
 		postToolUse: [
 			{ matcher: "Write", hooks: [postToolUseHook] },
 			{ matcher: "Edit", hooks: [postToolUseHook] },
