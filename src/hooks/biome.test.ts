@@ -2,9 +2,10 @@ import { describe, expect, test } from "bun:test";
 import type {
 	PostToolUseHookInput,
 	PreToolUseHookInput,
+	StopHookInput,
 } from "@anthropic-ai/claude-agent-sdk";
 import type { BiomeDiagnostic } from "../schemas/biome.js";
-import { createBiomeHooks, runBiomeCheck } from "./biome.js";
+import { createBiomeHooks, runBiomeCheck, runBiomeCheckAll } from "./biome.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -439,5 +440,223 @@ describe("biomeCommitGateHook", () => {
 			{ signal: ABORT_SIGNAL },
 		);
 		expect(result.continue).toBe(true);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Issue #17: Session gate (Stop) hook (unit tests with stub checkAllFn)
+// ---------------------------------------------------------------------------
+
+function makeStopInput(stopHookActive = false): StopHookInput {
+	return {
+		hook_event_name: "Stop",
+		stop_hook_active: stopHookActive,
+		session_id: "sess_001",
+		transcript_path: "/tmp/transcript.json",
+	} as StopHookInput;
+}
+
+function createTestSessionGateHook(checkAllFn: CheckAllFn, _cwd: string) {
+	return async (
+		input: StopHookInput,
+		_toolUseId: string | undefined,
+		_options: { signal: AbortSignal },
+	) => {
+		if (input.stop_hook_active) return { continue: true };
+		const diagnostics = await checkAllFn(_cwd);
+		const errors = diagnostics.filter((d) => d.severity === "error");
+		if (errors.length === 0) return { continue: true };
+		const errorFiles = new Set(errors.map((d) => d.file));
+		return {
+			continue: false,
+			stopReason: `Biome errors remain. Fix ${errors.length} error(s) in ${errorFiles.size} file(s) before ending session.`,
+		};
+	};
+}
+
+describe("biomeSessionGateHook", () => {
+	const clean: CheckAllFn = async () => [];
+	const withErrors: CheckAllFn = async () => [
+		{
+			file: "src/index.ts",
+			severity: "error",
+			category: "lint/suspicious/noDoubleEquals",
+			message: "Use === instead of ==",
+			line: 5,
+			column: 10,
+			endLine: 5,
+			endColumn: 12,
+			hasFix: false,
+		},
+	];
+	const threeErrorsTwoFiles: CheckAllFn = async () => [
+		{
+			file: "src/a.ts",
+			severity: "error",
+			category: "lint/suspicious/noDoubleEquals",
+			message: "err",
+			line: 1,
+			column: 1,
+			endLine: 1,
+			endColumn: 3,
+			hasFix: false,
+		},
+		{
+			file: "src/b.ts",
+			severity: "error",
+			category: "lint/suspicious/noDoubleEquals",
+			message: "err",
+			line: 2,
+			column: 1,
+			endLine: 2,
+			endColumn: 3,
+			hasFix: false,
+		},
+		{
+			file: "src/a.ts",
+			severity: "error",
+			category: "lint/suspicious/noDoubleEquals",
+			message: "err",
+			line: 3,
+			column: 1,
+			endLine: 3,
+			endColumn: 3,
+			hasFix: false,
+		},
+	];
+	const warningsOnly: CheckAllFn = async () => [
+		{
+			file: "src/index.ts",
+			severity: "warning",
+			category: "lint/correctness/noUnusedVariables",
+			message: "Unused variable.",
+			line: 1,
+			column: 1,
+			endLine: 1,
+			endColumn: 2,
+			hasFix: false,
+		},
+	];
+
+	test("allows stop when biome is clean", async () => {
+		const hook = createTestSessionGateHook(clean, REPO_CWD);
+		const result = await hook(makeStopInput(false), undefined, {
+			signal: ABORT_SIGNAL,
+		});
+		expect(result.continue).toBe(true);
+	});
+
+	test("blocks stop when biome has errors", async () => {
+		const hook = createTestSessionGateHook(withErrors, REPO_CWD);
+		const result = await hook(makeStopInput(false), undefined, {
+			signal: ABORT_SIGNAL,
+		});
+		expect(result.continue).toBe(false);
+		expect(typeof (result as Record<string, unknown>).stopReason).toBe(
+			"string",
+		);
+		const stopReason = (result as Record<string, unknown>).stopReason as string;
+		expect(stopReason.toLowerCase()).toContain("biome");
+		expect(stopReason).toContain("1 error");
+		expect(stopReason).toContain("1 file");
+	});
+
+	test("does not block when stop_hook_active is true (avoids infinite loop)", async () => {
+		const hook = createTestSessionGateHook(withErrors, REPO_CWD);
+		const result = await hook(makeStopInput(true), undefined, {
+			signal: ABORT_SIGNAL,
+		});
+		expect(result.continue).toBe(true);
+	});
+
+	test("reports correct error and file counts", async () => {
+		const hook = createTestSessionGateHook(threeErrorsTwoFiles, REPO_CWD);
+		const result = await hook(makeStopInput(false), undefined, {
+			signal: ABORT_SIGNAL,
+		});
+		expect(result.continue).toBe(false);
+		const stopReason = (result as Record<string, unknown>).stopReason as string;
+		expect(stopReason).toContain("3 error");
+		expect(stopReason).toContain("2 file");
+	});
+
+	test("does not block for warnings-only", async () => {
+		const hook = createTestSessionGateHook(warningsOnly, REPO_CWD);
+		const result = await hook(makeStopInput(false), undefined, {
+			signal: ABORT_SIGNAL,
+		});
+		expect(result.continue).toBe(true);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// createBiomeHooks factory (full)
+// ---------------------------------------------------------------------------
+
+describe("createBiomeHooks", () => {
+	const baseConfig = {
+		projectDir: REPO_CWD,
+		maxIterations: 0,
+		model: "claude-sonnet-4-6",
+		enableEvaluator: true,
+		evaluatorModel: "claude-opus-4-6",
+		plannerModel: "claude-opus-4-6",
+		passThreshold: 6,
+		maxEvaluatorRetries: 3,
+		enableOtel: false,
+		otelEndpoint: "http://localhost:4318",
+	};
+	const otel = {} as Parameters<typeof createBiomeHooks>[1];
+
+	test("returns populated arrays when enableBiomeHooks is true", () => {
+		const hooks = createBiomeHooks(
+			{ ...baseConfig, enableBiomeHooks: true },
+			otel,
+		);
+		expect(hooks.preToolUse.length).toBeGreaterThan(0);
+		expect(hooks.postToolUse.length).toBeGreaterThan(0);
+		expect(hooks.stop.length).toBeGreaterThan(0);
+	});
+
+	test("preToolUse matchers include Bash for commit gate", () => {
+		const hooks = createBiomeHooks(
+			{ ...baseConfig, enableBiomeHooks: true },
+			otel,
+		);
+		const matchers = hooks.preToolUse.map((m) => m.matcher);
+		expect(matchers).toContain("Bash");
+	});
+
+	test("stop hooks array is non-empty when enabled", () => {
+		const hooks = createBiomeHooks(
+			{ ...baseConfig, enableBiomeHooks: true },
+			otel,
+		);
+		expect(hooks.stop.length).toBeGreaterThan(0);
+		expect(hooks.stop[0]?.hooks.length).toBeGreaterThan(0);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Integration: runBiomeCheckAll with real biome
+// ---------------------------------------------------------------------------
+
+describe("runBiomeCheckAll (integration)", () => {
+	test("returns an array of diagnostics (may be empty or non-empty)", async () => {
+		const diagnostics = await runBiomeCheckAll(REPO_CWD);
+		expect(Array.isArray(diagnostics)).toBe(true);
+	});
+
+	test("returns no errors in src/ when src/ is clean", async () => {
+		const diagnostics = await runBiomeCheckAll(REPO_CWD);
+		const srcErrors = diagnostics.filter(
+			(d) => d.severity === "error" && d.file.includes("/src/"),
+		);
+		expect(srcErrors.length).toBe(0);
+	});
+
+	test("returns empty array when biome binary does not exist", async () => {
+		const diagnostics = await runBiomeCheckAll("/nonexistent/dir");
+		expect(diagnostics).toEqual([]);
 	});
 });
