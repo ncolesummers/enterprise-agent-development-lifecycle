@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import type { PostToolUseHookInput } from "@anthropic-ai/claude-agent-sdk";
+import type {
+	PostToolUseHookInput,
+	PreToolUseHookInput,
+} from "@anthropic-ai/claude-agent-sdk";
 import type { BiomeDiagnostic } from "../schemas/biome.js";
 import { createBiomeHooks, runBiomeCheck } from "./biome.js";
 
@@ -287,5 +290,154 @@ describe("runBiomeCheck (integration)", () => {
 	test("returns empty array when biome binary does not exist", async () => {
 		const diagnostics = await runBiomeCheck("src/index.ts", "/nonexistent/dir");
 		expect(diagnostics).toEqual([]);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Issue #16: Commit gate hook (unit tests with stub checkAllFn)
+// ---------------------------------------------------------------------------
+
+type CheckAllFn = (cwd: string) => Promise<BiomeDiagnostic[]>;
+
+function makePreToolUseInput(command: string): PreToolUseHookInput {
+	return {
+		hook_event_name: "PreToolUse",
+		tool_name: "Bash",
+		tool_input: { command },
+		tool_use_id: "tu_pre_001",
+		session_id: "sess_001",
+		transcript_path: "/tmp/transcript.json",
+	} as PreToolUseHookInput;
+}
+
+function createTestCommitGateHook(checkAllFn: CheckAllFn, cwd: string) {
+	return async (
+		input: PreToolUseHookInput,
+		_toolUseId: string | undefined,
+		_options: { signal: AbortSignal },
+	) => {
+		const toolInput = input.tool_input as Record<string, unknown> | null;
+		const command =
+			toolInput && typeof toolInput.command === "string"
+				? toolInput.command
+				: "";
+		if (!command.includes("git commit")) return { continue: true };
+		const diagnostics = await checkAllFn(cwd);
+		const errors = diagnostics.filter((d) => d.severity === "error");
+		if (errors.length === 0) return { continue: true };
+		const errorFiles = new Set(errors.map((d) => d.file));
+		return {
+			continue: false,
+			reason: `Biome check failed. Fix ${errors.length} error(s) in ${errorFiles.size} file(s) before committing.`,
+		};
+	};
+}
+
+describe("biomeCommitGateHook", () => {
+	const clean: CheckAllFn = async () => [];
+	const withErrors: CheckAllFn = async () => [
+		{
+			file: "src/index.ts",
+			severity: "error",
+			category: "lint/suspicious/noDoubleEquals",
+			message: "Use === instead of ==",
+			line: 5,
+			column: 10,
+			endLine: 5,
+			endColumn: 12,
+			hasFix: false,
+		},
+	];
+	const withTwoFilesErrors: CheckAllFn = async () => [
+		{
+			file: "src/a.ts",
+			severity: "error",
+			category: "lint/suspicious/noDoubleEquals",
+			message: "Use === instead of ==",
+			line: 1,
+			column: 1,
+			endLine: 1,
+			endColumn: 3,
+			hasFix: false,
+		},
+		{
+			file: "src/b.ts",
+			severity: "error",
+			category: "lint/suspicious/noDoubleEquals",
+			message: "Use === instead of ==",
+			line: 2,
+			column: 1,
+			endLine: 2,
+			endColumn: 3,
+			hasFix: false,
+		},
+	];
+	const warningsOnly: CheckAllFn = async () => [
+		{
+			file: "src/index.ts",
+			severity: "warning",
+			category: "lint/correctness/noUnusedVariables",
+			message: "Unused variable.",
+			line: 1,
+			column: 1,
+			endLine: 1,
+			endColumn: 2,
+			hasFix: false,
+		},
+	];
+
+	test("passes through non-git-commit commands", async () => {
+		const hook = createTestCommitGateHook(withErrors, REPO_CWD);
+		const result = await hook(makePreToolUseInput("ls -la"), undefined, {
+			signal: ABORT_SIGNAL,
+		});
+		expect(result.continue).toBe(true);
+	});
+
+	test("allows commit when biome is clean", async () => {
+		const hook = createTestCommitGateHook(clean, REPO_CWD);
+		const result = await hook(
+			makePreToolUseInput("git commit -m 'feat: add feature'"),
+			undefined,
+			{ signal: ABORT_SIGNAL },
+		);
+		expect(result.continue).toBe(true);
+	});
+
+	test("blocks commit when biome has errors", async () => {
+		const hook = createTestCommitGateHook(withErrors, REPO_CWD);
+		const result = await hook(
+			makePreToolUseInput("git commit -m 'wip'"),
+			undefined,
+			{ signal: ABORT_SIGNAL },
+		);
+		expect(result.continue).toBe(false);
+		expect(typeof (result as Record<string, unknown>).reason).toBe("string");
+		const reason = (result as Record<string, unknown>).reason as string;
+		expect(reason.toLowerCase()).toContain("biome");
+		expect(reason).toContain("1 error");
+	});
+
+	test("blocks commit and reports multiple files", async () => {
+		const hook = createTestCommitGateHook(withTwoFilesErrors, REPO_CWD);
+		const result = await hook(
+			makePreToolUseInput("git commit -m 'wip'"),
+			undefined,
+			{ signal: ABORT_SIGNAL },
+		);
+		expect(result.continue).toBe(false);
+		const reason = (result as Record<string, unknown>).reason as string;
+		expect(reason).toContain("2 error");
+		expect(reason).toContain("2 file");
+	});
+
+	test("does not block for warnings-only when committing", async () => {
+		const hook = createTestCommitGateHook(warningsOnly, REPO_CWD);
+		const result = await hook(
+			makePreToolUseInput("git commit -m 'clean'"),
+			undefined,
+			{ signal: ABORT_SIGNAL },
+		);
+		expect(result.continue).toBe(true);
 	});
 });
