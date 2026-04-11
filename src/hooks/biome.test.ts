@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { unlink } from "node:fs/promises";
 import type {
 	PostToolUseHookInput,
 	PreToolUseHookInput,
@@ -268,9 +269,7 @@ describe("runBiomeCheck (integration)", () => {
 			const errors = diagnostics.filter((d) => d.severity === "error");
 			expect(errors.length).toBe(0);
 		} finally {
-			await Bun.file(filePath)
-				.arrayBuffer()
-				.catch(() => {});
+			await unlink(filePath).catch(() => {});
 		}
 	});
 
@@ -282,9 +281,7 @@ describe("runBiomeCheck (integration)", () => {
 			expect(errors.length).toBeGreaterThan(0);
 			expect(errors[0]?.category).toContain("noDoubleEquals");
 		} finally {
-			await Bun.file(filePath)
-				.arrayBuffer()
-				.catch(() => {});
+			await unlink(filePath).catch(() => {});
 		}
 	});
 
@@ -322,7 +319,7 @@ function createTestCommitGateHook(checkAllFn: CheckAllFn, cwd: string) {
 			toolInput && typeof toolInput.command === "string"
 				? toolInput.command
 				: "";
-		if (!command.includes("git commit")) return { continue: true };
+		if (!/\bgit\s+commit\b/.test(command)) return { continue: true };
 		const diagnostics = await checkAllFn(cwd);
 		const errors = diagnostics.filter((d) => d.severity === "error");
 		if (errors.length === 0) return { continue: true };

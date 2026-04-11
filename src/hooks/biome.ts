@@ -200,7 +200,7 @@ export function createBiomeCommitGateHook(cwd: string): HookCallback {
 				? toolInput.command
 				: "";
 
-		if (!command.includes("git commit")) {
+		if (!/\bgit\s+commit\b/.test(command)) {
 			return { continue: true };
 		}
 
