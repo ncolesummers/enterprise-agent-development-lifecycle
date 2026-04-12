@@ -1,5 +1,6 @@
 import { bashSecurityHook } from "../hooks/security.js";
 import type { OtelContext, Span } from "../otel/index.js";
+import { getNativeOtelEnv } from "../otel/native-config.js";
 import type { AgentConfig } from "../schemas/config.js";
 import { runAgentSession } from "../sdk-wrapper.js";
 import { readAppSpec, readFeatureList, readProgress } from "../state.js";
@@ -26,14 +27,7 @@ export async function runInitializerSession(
 		hooks: {
 			PreToolUse: [{ matcher: "Bash", hooks: [bashSecurityHook] }],
 		},
-		env: config.enableOtel
-			? {
-					CLAUDE_CODE_ENABLE_TELEMETRY: "1",
-					OTEL_METRICS_EXPORTER: "otlp",
-					OTEL_LOGS_EXPORTER: "otlp",
-					OTEL_EXPORTER_OTLP_ENDPOINT: config.otelEndpoint,
-				}
-			: undefined,
+		env: getNativeOtelEnv(config),
 		otel,
 		parentSpan,
 	});

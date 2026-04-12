@@ -14,6 +14,7 @@ import {
 	type OtelContext,
 	type Span,
 } from "./otel/index.js";
+import { getNativeOtelEnv } from "./otel/native-config.js";
 import type { AgentConfig } from "./schemas/config.js";
 import { type AgentType, runAgentSession } from "./sdk-wrapper.js";
 import {
@@ -116,6 +117,7 @@ async function runPlannerSession(
 		model: config.plannerModel,
 		cwd: config.projectDir,
 		allowedTools: ["Read", "Write", "Bash"],
+		env: getNativeOtelEnv(config),
 		otel,
 		parentSpan,
 	});
@@ -161,14 +163,7 @@ async function runGeneratorSession(
 			Stop: [...biomeHooks.stop],
 			PreCompact: [...biomeHooks.preCompact],
 		},
-		env: config.enableOtel
-			? {
-					CLAUDE_CODE_ENABLE_TELEMETRY: "1",
-					OTEL_METRICS_EXPORTER: "otlp",
-					OTEL_LOGS_EXPORTER: "otlp",
-					OTEL_EXPORTER_OTLP_ENDPOINT: config.otelEndpoint,
-				}
-			: undefined,
+		env: getNativeOtelEnv(config),
 		otel,
 		parentSpan,
 		spanAttributes: { iteration },
@@ -195,6 +190,7 @@ async function runEvaluatorSession(
 			PreToolUse: [{ matcher: "Bash", hooks: [bashSecurityHook] }],
 			PostToolUse: [...agentBrowserHooks.postToolUse],
 		},
+		env: getNativeOtelEnv(config),
 		otel,
 		parentSpan,
 	});
