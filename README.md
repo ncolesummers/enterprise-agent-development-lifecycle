@@ -150,6 +150,27 @@ The `docs/` directory contains the complete ADLC reference:
 - **[Source Analysis](docs/source-analysis.md)** — Research synthesis justifying architecture decisions
 - **[TDX MCP Server Design](docs/tdx-mcp-server-design.md)** — Phase 2 production use case
 - **[Zod Schema Library](docs/zod-schema-library.md)** — All inter-agent data contracts
+- **[Native OTel Reference](docs/native-otel-reference.md)** — Layer 1 telemetry env vars, metrics, and events
+
+## Local Observability
+
+A minimal docker-compose stack is provided to inspect Layer 1 native telemetry emitted by Claude Code during agent sessions. It ships three services: **Jaeger** for traces, the **OpenTelemetry Collector** as the ingress, and **Prometheus** for metrics.
+
+```bash
+docker compose up -d
+```
+
+| Service | URL |
+|---|---|
+| Jaeger UI | http://localhost:16686 |
+| Prometheus UI | http://localhost:9090 |
+| OTLP HTTP (harness target) | http://localhost:4318 |
+
+The harness writes to the collector at `OTEL_EXPORTER_OTLP_ENDPOINT` (default `http://localhost:4318`). The collector forwards traces to Jaeger and exposes metrics on `:8889`, which Prometheus scrapes.
+
+Grafana, ADLC dashboards, and the harness-level `/metrics` scrape target are **not** included in this stack. They will land alongside the Layer 2 harness instrumentation tracked in issues #19 and #20.
+
+Stop the stack with `docker compose down`.
 
 ## Key Design Principles
 
