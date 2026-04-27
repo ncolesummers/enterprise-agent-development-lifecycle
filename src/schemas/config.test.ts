@@ -118,7 +118,7 @@ describe("AgentConfigSchema", () => {
 			"generator",
 			"evaluator",
 			"coding",
-		]) {
+		] as const) {
 			const result = AgentConfigSchema.safeParse(
 				makeConfig({ agentOverride: agent }),
 			);

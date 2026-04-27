@@ -6,6 +6,7 @@ import type {
 	StopHookInput,
 } from "@anthropic-ai/claude-agent-sdk";
 import type { BiomeDiagnostic } from "../schemas/biome.js";
+import { AgentConfigSchema } from "../schemas/config.js";
 import { createBiomeHooks, runBiomeCheck, runBiomeCheckAll } from "./biome.js";
 
 // ---------------------------------------------------------------------------
@@ -221,18 +222,10 @@ describe("biomePostToolUseHook", () => {
 // ---------------------------------------------------------------------------
 
 describe("createBiomeHooks (postToolUse)", () => {
-	const baseConfig = {
+	const baseConfig = AgentConfigSchema.parse({
 		projectDir: REPO_CWD,
-		maxIterations: 0,
-		model: "claude-sonnet-4-6",
-		enableEvaluator: true,
-		evaluatorModel: "claude-opus-4-6",
-		plannerModel: "claude-opus-4-6",
-		passThreshold: 6,
-		maxEvaluatorRetries: 3,
 		enableOtel: false,
-		otelEndpoint: "http://localhost:4318",
-	};
+	});
 	const otel = {} as Parameters<typeof createBiomeHooks>[1];
 
 	test("returns empty arrays when enableBiomeHooks is false", () => {
@@ -591,18 +584,10 @@ describe("biomeSessionGateHook", () => {
 // ---------------------------------------------------------------------------
 
 describe("createBiomeHooks", () => {
-	const baseConfig = {
+	const baseConfig = AgentConfigSchema.parse({
 		projectDir: REPO_CWD,
-		maxIterations: 0,
-		model: "claude-sonnet-4-6",
-		enableEvaluator: true,
-		evaluatorModel: "claude-opus-4-6",
-		plannerModel: "claude-opus-4-6",
-		passThreshold: 6,
-		maxEvaluatorRetries: 3,
 		enableOtel: false,
-		otelEndpoint: "http://localhost:4318",
-	};
+	});
 	const otel = {} as Parameters<typeof createBiomeHooks>[1];
 
 	test("returns populated arrays when enableBiomeHooks is true", () => {

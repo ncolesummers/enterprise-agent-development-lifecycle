@@ -9,6 +9,8 @@ export const AGENT_TOOL_PERMISSIONS: Record<AgentType, string[]> = {
 	initializer: ["Read", "Write", "Bash", "Glob", "Grep"],
 	// Planner only reads the spec and writes the plan — no code execution
 	planner: ["Read", "Write", "Glob", "Grep"],
+	// SDET has full access to add tests and run validation
+	sdet: ["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
 	// Generator has full access to implement features
 	generator: ["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
 	// Evaluator reads code and runs tests but does not modify source files

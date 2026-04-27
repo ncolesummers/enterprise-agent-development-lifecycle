@@ -11,6 +11,7 @@ describe("AGENT_TOOL_PERMISSIONS", () => {
 		const allTypes: AgentType[] = [
 			"initializer",
 			"planner",
+			"sdet",
 			"generator",
 			"evaluator",
 			"coding",
@@ -59,6 +60,28 @@ describe("AGENT_TOOL_PERMISSIONS", () => {
 
 		test("has exactly 4 tools", () => {
 			expect(AGENT_TOOL_PERMISSIONS.planner).toHaveLength(4);
+		});
+	});
+
+	// sdet
+	describe("sdet", () => {
+		test("has Read, Write, Edit, Bash, Glob, Grep", () => {
+			expect(AGENT_TOOL_PERMISSIONS.sdet).toContain("Read");
+			expect(AGENT_TOOL_PERMISSIONS.sdet).toContain("Write");
+			expect(AGENT_TOOL_PERMISSIONS.sdet).toContain("Edit");
+			expect(AGENT_TOOL_PERMISSIONS.sdet).toContain("Bash");
+			expect(AGENT_TOOL_PERMISSIONS.sdet).toContain("Glob");
+			expect(AGENT_TOOL_PERMISSIONS.sdet).toContain("Grep");
+		});
+
+		test("has exactly 6 tools", () => {
+			expect(AGENT_TOOL_PERMISSIONS.sdet).toHaveLength(6);
+		});
+
+		test("mirrors generator tool set", () => {
+			expect(AGENT_TOOL_PERMISSIONS.sdet.slice().sort()).toEqual(
+				AGENT_TOOL_PERMISSIONS.generator.slice().sort(),
+			);
 		});
 	});
 
@@ -144,6 +167,10 @@ describe("getAllowedTools", () => {
 		);
 	});
 
+	test("returns the correct array for sdet", () => {
+		expect(getAllowedTools("sdet")).toEqual(AGENT_TOOL_PERMISSIONS.sdet);
+	});
+
 	test("returns the correct array for evaluator", () => {
 		expect(getAllowedTools("evaluator")).toEqual(
 			AGENT_TOOL_PERMISSIONS.evaluator,
@@ -158,6 +185,7 @@ describe("getAllowedTools", () => {
 		const types: AgentType[] = [
 			"initializer",
 			"planner",
+			"sdet",
 			"generator",
 			"evaluator",
 			"coding",
