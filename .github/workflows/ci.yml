@@ -17,13 +17,13 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.1.38
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
       - name: Typecheck
-        run: bunx tsc --noEmit
+        run: bunx typescript@5.6.3 tsc --noEmit
 
       - name: Test
         run: bun test
