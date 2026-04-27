@@ -2,6 +2,7 @@ import { createAgentBrowserHooks } from "../hooks/agent-browser.js";
 import { createBiomeHooks } from "../hooks/biome.js";
 import { bashSecurityHook } from "../hooks/security.js";
 import type { OtelContext, Span } from "../otel/index.js";
+import { getNativeOtelEnv } from "../otel/native-config.js";
 import type { AgentConfig } from "../schemas/config.js";
 import { runAgentSession } from "../sdk-wrapper.js";
 import { getCodingPrompt } from "./prompts.js";
@@ -38,14 +39,7 @@ export async function runCodingSession(
 			Stop: [...biomeHooks.stop],
 			PreCompact: [...biomeHooks.preCompact],
 		},
-		env: config.enableOtel
-			? {
-					CLAUDE_CODE_ENABLE_TELEMETRY: "1",
-					OTEL_METRICS_EXPORTER: "otlp",
-					OTEL_LOGS_EXPORTER: "otlp",
-					OTEL_EXPORTER_OTLP_ENDPOINT: config.otelEndpoint,
-				}
-			: undefined,
+		env: getNativeOtelEnv(config),
 		otel,
 		parentSpan,
 		spanAttributes: { iteration },
