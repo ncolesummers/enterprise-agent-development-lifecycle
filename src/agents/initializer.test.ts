@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type { OtelContext, Span } from "../otel/index.js";
-import type { AgentConfig } from "../schemas/config.js";
+import { type AgentConfig, AgentConfigSchema } from "../schemas/config.js";
 import type { AgentSessionOptions } from "../sdk-wrapper.js";
 
 // ---------------------------------------------------------------------------
@@ -110,20 +110,10 @@ function makeOtel(): OtelContext {
 }
 
 function makeConfig(overrides: Partial<AgentConfig> = {}): AgentConfig {
-	return {
+	return AgentConfigSchema.parse({
 		projectDir: "/tmp/test-project",
-		maxIterations: 0,
-		model: "claude-sonnet-4-6",
-		enableEvaluator: true,
-		evaluatorModel: "claude-opus-4-6",
-		plannerModel: "claude-opus-4-6",
-		passThreshold: 6,
-		maxEvaluatorRetries: 3,
-		enableBiomeHooks: true,
-		enableOtel: true,
-		otelEndpoint: "http://localhost:4318",
 		...overrides,
-	};
+	});
 }
 
 // ---------------------------------------------------------------------------
@@ -273,6 +263,6 @@ describe("runInitializerSession", () => {
 		const preToolUse = capturedOptions?.hooks?.PreToolUse;
 		expect(preToolUse).toBeDefined();
 		expect(preToolUse?.length).toBe(1);
-		expect(preToolUse?.[0].matcher).toBe("Bash");
+		expect(preToolUse?.[0]?.matcher).toBe("Bash");
 	});
 });

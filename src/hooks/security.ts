@@ -134,7 +134,10 @@ export function createFileSystemBoundaryHook(projectDir: string): HookCallback {
 			let match: RegExpExecArray | null;
 			// biome-ignore lint/suspicious/noAssignInExpressions: standard regex loop pattern
 			while ((match = cdAbsolutePattern.exec(command)) !== null) {
-				const targetPath = resolve(match[1]);
+				const cdTarget = match[1];
+				if (!cdTarget) continue;
+
+				const targetPath = resolve(cdTarget);
 				if (
 					!targetPath.startsWith(`${resolvedProjectDir}/`) &&
 					targetPath !== resolvedProjectDir

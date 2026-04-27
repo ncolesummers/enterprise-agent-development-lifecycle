@@ -3,26 +3,18 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { countPassingFeatures, detectState } from "./orchestrator.js";
-import type { AgentConfig } from "./schemas/config.js";
+import { type AgentConfig, AgentConfigSchema } from "./schemas/config.js";
 
 function makeConfig(
 	projectDir: string,
 	overrides?: Partial<AgentConfig>,
 ): AgentConfig {
-	return {
+	return AgentConfigSchema.parse({
 		projectDir,
-		maxIterations: 0,
-		model: "claude-sonnet-4-6",
-		plannerModel: "claude-opus-4-6",
-		evaluatorModel: "claude-opus-4-6",
-		enableEvaluator: true,
-		enableBiomeHooks: true,
 		enableOtel: false,
 		otelEndpoint: "http://localhost:4317",
-		maxEvaluatorRetries: 3,
-		passThreshold: 6,
 		...overrides,
-	};
+	});
 }
 
 describe("detectState", () => {

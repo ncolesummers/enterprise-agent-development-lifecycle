@@ -149,7 +149,7 @@ describe("formatValidationErrors", () => {
 			{
 				code: ZodIssueCode.too_small,
 				minimum: 1,
-				type: "string",
+				origin: "string",
 				inclusive: true,
 				message: "String must contain at least 1 character(s)",
 				path: ["projectDir"],
@@ -169,7 +169,7 @@ describe("formatValidationErrors", () => {
 			{
 				code: ZodIssueCode.too_small,
 				minimum: 1,
-				type: "string",
+				origin: "string",
 				inclusive: true,
 				message: "String must contain at least 1 character(s)",
 				path: ["projectDir"],
@@ -177,7 +177,7 @@ describe("formatValidationErrors", () => {
 			{
 				code: ZodIssueCode.too_big,
 				maximum: 10,
-				type: "number",
+				origin: "number",
 				inclusive: true,
 				message: "Number must be less than or equal to 10",
 				path: ["passThreshold"],

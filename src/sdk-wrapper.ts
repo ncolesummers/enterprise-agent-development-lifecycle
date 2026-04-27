@@ -18,6 +18,7 @@ import { type OtelContext, type Span, SpanStatusCode } from "./otel/index.js";
 export type AgentType =
 	| "initializer"
 	| "planner"
+	| "sdet"
 	| "generator"
 	| "evaluator"
 	| "coding";
