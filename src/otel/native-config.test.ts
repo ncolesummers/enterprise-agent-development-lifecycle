@@ -10,14 +10,14 @@ describe("getNativeOtelEnv", () => {
 		expect(result).toBeUndefined();
 	});
 
-	test("returns the full four-key env map when enabled", () => {
+	test("returns the three-key env map when enabled", () => {
 		const result = getNativeOtelEnv({ ...baseConfig, enableOtel: true });
 		expect(result).toEqual({
 			CLAUDE_CODE_ENABLE_TELEMETRY: "1",
 			OTEL_METRICS_EXPORTER: "otlp",
-			OTEL_LOGS_EXPORTER: "otlp",
 			OTEL_EXPORTER_OTLP_ENDPOINT: baseConfig.otelEndpoint,
 		});
+		expect(result).not.toHaveProperty("OTEL_LOGS_EXPORTER");
 	});
 
 	test("propagates a non-default otelEndpoint verbatim", () => {

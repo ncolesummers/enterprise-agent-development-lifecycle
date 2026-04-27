@@ -5,7 +5,8 @@ services:
       COLLECTOR_OTLP_ENABLED: "true"
     ports:
       - "16686:16686"  # UI
-      - "4317"         # OTLP gRPC (internal; harness talks to collector)
+    expose:
+      - "4317"         # OTLP gRPC (internal; collector talks to jaeger)
       - "4318"         # OTLP HTTP (internal)
 
   otel-collector:
